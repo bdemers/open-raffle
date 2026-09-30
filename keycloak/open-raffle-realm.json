@@ -1,0 +1,74 @@
+{
+  "realm": "open-raffle",
+  "displayName": "Open Raffle",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginTheme": "keycloak",
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMIN",
+        "description": "Raffle organizer: can manage participants and prizes"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "open-raffle-app",
+      "name": "Open Raffle",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "open-raffle-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "http://localhost:8080",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:8080/*", "http://127.0.0.1:8080/*"],
+      "webOrigins": ["http://localhost:8080", "http://127.0.0.1:8080"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:8080/*##http://127.0.0.1:8080/*",
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": ["openid", "profile", "email", "roles", "web-origins"],
+      "protocolMappers": [
+        {
+          "name": "realm roles in ID token",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "organizer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Raffle",
+      "lastName": "Organizer",
+      "email": "organizer@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "organizer",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN"]
+    }
+  ]
+}

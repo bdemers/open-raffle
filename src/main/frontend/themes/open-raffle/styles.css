@@ -1,0 +1,6 @@
+/* Open Raffle theme (Lumo-based). Add overrides here. */
+html {
+  --lumo-primary-color: hsl(262, 60%, 48%);
+  --lumo-primary-color-50pct: hsla(262, 60%, 48%, 0.5);
+  --lumo-primary-color-10pct: hsla(262, 60%, 48%, 0.1);
+}

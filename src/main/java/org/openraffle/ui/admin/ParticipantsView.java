@@ -1,0 +1,189 @@
+package org.openraffle.ui.admin;
+
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
+import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.binder.BeanValidationBinder;
+import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.StreamResource;
+import com.vaadin.flow.theme.lumo.LumoUtility;
+import jakarta.annotation.security.RolesAllowed;
+import org.openraffle.domain.Participant;
+import org.openraffle.domain.Prize;
+import org.openraffle.security.SecurityConfig;
+import org.openraffle.service.ParticipantService;
+import org.openraffle.service.ParticipantService.TicketRangeConflictException;
+import org.openraffle.service.QrCodeService;
+import org.openraffle.ui.MainLayout;
+
+import java.io.ByteArrayInputStream;
+import java.util.stream.Collectors;
+
+@Route(value = "", layout = MainLayout.class)
+@PageTitle("Participants | Open Raffle")
+@RolesAllowed(SecurityConfig.ROLE_ADMIN)
+public class ParticipantsView extends VerticalLayout {
+
+    private final ParticipantService participantService;
+    private final QrCodeService qrCodeService;
+    private final Grid<Participant> grid = new Grid<>(Participant.class, false);
+
+    public ParticipantsView(ParticipantService participantService, QrCodeService qrCodeService) {
+        this.participantService = participantService;
+        this.qrCodeService = qrCodeService;
+        setSizeFull();
+
+        Button add = new Button("Add participant", VaadinIcon.PLUS.create(), e -> openEditor(new Participant()));
+        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        H2 heading = new H2("Participants");
+        HorizontalLayout toolbar = new HorizontalLayout(heading, add);
+        toolbar.setAlignItems(Alignment.BASELINE);
+        toolbar.expand(heading);
+        toolbar.setWidthFull();
+
+        grid.addColumn(Participant::getName).setHeader("Name").setAutoWidth(true).setSortable(true);
+        grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setAutoWidth(true)
+                .setComparator(Participant::getTicketStart).setSortable(true);
+        grid.addColumn(Participant::getTicketCount).setHeader("Count").setAutoWidth(true).setFlexGrow(0);
+        grid.addColumn(p -> p.getWishlist().isEmpty() ? "—"
+                        : p.getWishlist().stream().map(Prize::getName).collect(Collectors.joining(" › ")))
+                .setHeader("Wishlist (in order)").setFlexGrow(1);
+        grid.addComponentColumn(p -> {
+            Button qr = new Button(VaadinIcon.QRCODE.create(), e -> showQr(p));
+            qr.setTooltipText("Show QR code");
+            Button edit = new Button(VaadinIcon.EDIT.create(), e -> openEditor(p));
+            Button delete = new Button(VaadinIcon.TRASH.create(), e -> confirmDelete(p));
+            delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            HorizontalLayout actions = new HorizontalLayout(qr, edit, delete);
+            actions.getChildren().forEach(c -> ((Button) c)
+                    .addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL));
+            return actions;
+        }).setHeader("").setAutoWidth(true).setFlexGrow(0);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+        grid.setSizeFull();
+
+        add(toolbar, grid);
+        refresh();
+    }
+
+    private void refresh() {
+        grid.setItems(participantService.findAll());
+    }
+
+    private void openEditor(Participant participant) {
+        boolean isNew = participant.getId() == null;
+        Dialog dialog = new Dialog(isNew ? "New participant" : "Edit participant");
+
+        TextField name = new TextField("Name");
+        IntegerField ticketStart = new IntegerField("First ticket #");
+        IntegerField ticketEnd = new IntegerField("Last ticket #");
+        ticketStart.setMin(0);
+        ticketEnd.setMin(0);
+
+        BeanValidationBinder<Participant> binder = new BeanValidationBinder<>(Participant.class);
+        binder.forField(name).asRequired("Name is required").bind(Participant::getName, Participant::setName);
+        binder.forField(ticketStart).asRequired("Required")
+                .bind(p -> (int) p.getTicketStart(), (p, v) -> p.setTicketStart(v));
+        binder.forField(ticketEnd).asRequired("Required")
+                .withValidator(v -> ticketStart.getValue() == null || v >= ticketStart.getValue(),
+                        "Must be ≥ first ticket")
+                .bind(p -> (int) p.getTicketEnd(), (p, v) -> p.setTicketEnd(v));
+        if (!isNew) {
+            binder.readBean(participant);
+        }
+        // Convenience: when the first ticket is typed, default the last ticket to it.
+        ticketStart.addValueChangeListener(e -> {
+            if (e.isFromClient() && ticketEnd.isEmpty() && e.getValue() != null) {
+                ticketEnd.setValue(e.getValue());
+            }
+        });
+
+        FormLayout form = new FormLayout(name, ticketStart, ticketEnd);
+        form.setColspan(name, 2);
+        dialog.add(form);
+
+        Button save = new Button(isNew ? "Create & show QR" : "Save", e -> {
+            try {
+                binder.writeBean(participant);
+                Participant saved = participantService.save(participant);
+                dialog.close();
+                refresh();
+                if (isNew) {
+                    showQr(saved);
+                }
+            } catch (ValidationException ex) {
+                // shown inline by binder
+            } catch (TicketRangeConflictException ex) {
+                Notification n = Notification.show(ex.getMessage(), 6000, Notification.Position.MIDDLE);
+                n.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            } catch (IllegalArgumentException ex) {
+                Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(new Button("Cancel", e -> dialog.close()), save);
+        dialog.open();
+        name.focus();
+    }
+
+    private void showQr(Participant participant) {
+        Dialog dialog = new Dialog(participant.getName());
+        String url = qrCodeService.wishlistUrl(participant);
+
+        StreamResource png = new StreamResource("qr-" + participant.getId() + ".png",
+                () -> new ByteArrayInputStream(qrCodeService.pngFor(participant, 512)));
+        Image image = new Image(png, "QR code for " + participant.getName());
+        image.setWidth("min(70vw, 360px)");
+        image.setHeight("min(70vw, 360px)");
+
+        Span tickets = new Span("Tickets " + participant.getTicketRangeLabel());
+        tickets.addClassNames(LumoUtility.FontWeight.SEMIBOLD);
+        Anchor link = new Anchor(url, url);
+        link.setTarget("_blank");
+        link.addClassNames(LumoUtility.FontSize.SMALL);
+        Paragraph hint = new Paragraph("Scan to choose the prizes you'd like if your ticket is drawn.");
+        hint.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+
+        VerticalLayout content = new VerticalLayout(tickets, image, link, hint);
+        content.setAlignItems(Alignment.CENTER);
+        content.setPadding(false);
+        dialog.add(content);
+
+        Anchor download = new Anchor(png, "Download PNG");
+        download.getElement().setAttribute("download", true);
+        dialog.getFooter().add(download, new Button("Close", e -> dialog.close()));
+        dialog.open();
+    }
+
+    private void confirmDelete(Participant participant) {
+        ConfirmDialog confirm = new ConfirmDialog("Delete participant?",
+                participant.getName() + " (tickets " + participant.getTicketRangeLabel()
+                        + ") and their wishlist will be removed. Their QR code will stop working.",
+                "Delete", e -> {
+                    participantService.delete(participant);
+                    refresh();
+                    Notification.show("Participant deleted");
+                }, "Cancel", e -> {
+                });
+        confirm.setConfirmButtonTheme("error primary");
+        confirm.open();
+    }
+}
