@@ -34,6 +34,10 @@ public class Participant {
     @Column(nullable = false)
     private String name;
 
+    /** Optional; lets the organizer reach a winner who has stepped away. */
+    @Column(length = 32)
+    private String phone;
+
     @Column(nullable = false)
     private long ticketStart;
 
@@ -69,6 +73,14 @@ public class Participant {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone == null || phone.isBlank() ? null : phone.trim();
     }
 
     public long getTicketStart() {

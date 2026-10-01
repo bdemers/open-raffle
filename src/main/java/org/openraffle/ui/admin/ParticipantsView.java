@@ -60,6 +60,7 @@ public class ParticipantsView extends VerticalLayout {
         toolbar.setWidthFull();
 
         grid.addColumn(Participant::getName).setHeader("Name").setAutoWidth(true).setSortable(true);
+        grid.addColumn(p -> p.getPhone() == null ? "—" : p.getPhone()).setHeader("Phone").setAutoWidth(true);
         grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setAutoWidth(true)
                 .setComparator(Participant::getTicketStart).setSortable(true);
         grid.addColumn(Participant::getTicketCount).setHeader("Count").setAutoWidth(true).setFlexGrow(0);
@@ -93,6 +94,9 @@ public class ParticipantsView extends VerticalLayout {
         Dialog dialog = new Dialog(isNew ? "New participant" : "Edit participant");
 
         TextField name = new TextField("Name");
+        TextField phone = new TextField("Phone (optional)");
+        phone.setPlaceholder("555-123-4567");
+        phone.setMaxLength(32);
         IntegerField ticketStart = new IntegerField("First ticket #");
         IntegerField ticketEnd = new IntegerField("Last ticket #");
         ticketStart.setMin(0);
@@ -100,6 +104,7 @@ public class ParticipantsView extends VerticalLayout {
 
         BeanValidationBinder<Participant> binder = new BeanValidationBinder<>(Participant.class);
         binder.forField(name).asRequired("Name is required").bind(Participant::getName, Participant::setName);
+        binder.forField(phone).bind(Participant::getPhone, Participant::setPhone);
         binder.forField(ticketStart).asRequired("Required")
                 .bind(p -> (int) p.getTicketStart(), (p, v) -> p.setTicketStart(v));
         binder.forField(ticketEnd).asRequired("Required")
@@ -116,8 +121,7 @@ public class ParticipantsView extends VerticalLayout {
             }
         });
 
-        FormLayout form = new FormLayout(name, ticketStart, ticketEnd);
-        form.setColspan(name, 2);
+        FormLayout form = new FormLayout(name, phone, ticketStart, ticketEnd);
         dialog.add(form);
 
         Button save = new Button(isNew ? "Create & show QR" : "Save", e -> {
