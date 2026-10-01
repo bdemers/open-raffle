@@ -3,6 +3,7 @@ package org.openraffle.service;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
 import org.openraffle.repository.ParticipantRepository;
+import org.openraffle.repository.PrizeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,9 +20,11 @@ public class ParticipantService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final ParticipantRepository participants;
+    private final PrizeRepository prizes;
 
-    public ParticipantService(ParticipantRepository participants) {
+    public ParticipantService(ParticipantRepository participants, PrizeRepository prizes) {
         this.participants = participants;
+        this.prizes = prizes;
     }
 
     @Transactional(readOnly = true)
@@ -60,6 +63,13 @@ public class ParticipantService {
     }
 
     public void delete(Participant participant) {
+        // Release any prizes they claimed during the draw so the FK doesn't block the delete.
+        List<Prize> claimed = prizes.findAllByClaimedBy(participant);
+        claimed.forEach(p -> {
+            p.setClaimedBy(null);
+            p.setClaimedAt(null);
+        });
+        prizes.saveAll(claimed);
         participants.delete(participant);
     }
 
