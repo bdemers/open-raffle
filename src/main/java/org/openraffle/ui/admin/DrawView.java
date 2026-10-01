@@ -176,12 +176,18 @@ public class DrawView extends VerticalLayout {
         prize.setName(name);
         prize = prizeService.save(prize);
         if (claim) {
-            prizeService.claim(prize, winner);
-            notify(winner.getName() + " takes " + prize.getName(), NotificationVariant.LUMO_SUCCESS);
+            give(prize, winner);
         } else {
             notify("Added " + prize.getName(), NotificationVariant.LUMO_SUCCESS);
         }
         lookup(lastTicket);
+    }
+
+    /** Records the claim and makes sure the prize appears on the winner's preference list. */
+    private void give(Prize prize, Participant winner) {
+        prizeService.claim(prize, winner);
+        participantService.addToWishlist(winner, prize);
+        notify(winner.getName() + " takes " + prize.getName(), NotificationVariant.LUMO_SUCCESS);
     }
 
     private static Div prizeList() {
@@ -220,8 +226,7 @@ public class DrawView extends VerticalLayout {
         claimed.addValueChangeListener(e -> {
             try {
                 if (e.getValue()) {
-                    prizeService.claim(prize, winner);
-                    notify(winner.getName() + " takes " + prize.getName(), NotificationVariant.LUMO_SUCCESS);
+                    give(prize, winner);
                 } else {
                     prizeService.unclaim(prize);
                 }

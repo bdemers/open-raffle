@@ -83,6 +83,21 @@ public class ParticipantService {
         return participants.save(participant);
     }
 
+    /**
+     * Appends a prize the organizer handed out during the draw to the participant's list
+     * (at the bottom) if they had not picked it themselves, so the draw page shows it
+     * among their preferences.
+     */
+    public Participant addToWishlist(Participant participant, Prize prize) {
+        Participant p = participants.findById(participant.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Unknown participant"));
+        if (!p.getWishlist().contains(prize)) {
+            p.getWishlist().add(prize);
+            p = participants.save(p);
+        }
+        return p;
+    }
+
     private static String newToken() {
         byte[] bytes = new byte[24];
         RANDOM.nextBytes(bytes);
