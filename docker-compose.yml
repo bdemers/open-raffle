@@ -1,3 +1,12 @@
+# Local infrastructure for Open Raffle: just Postgres.
+#
+# Keycloak is shared across projects and lives in ../local-keycloak; it imports
+# ./keycloak/open-raffle-realm.json. Start it first:
+#   (cd ../local-keycloak && docker compose up -d)
+#
+# In dev, run the app from the host so it and the browser reach Keycloak at the
+# same issuer URL (http://localhost:8180/realms/open-raffle):
+#   mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8081
 services:
   postgres:
     image: postgres:17-alpine
@@ -8,59 +17,12 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U raffle -d raffle"]
       interval: 5s
       timeout: 3s
       retries: 20
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.7
-    command: ["start-dev", "--import-realm"]
-    environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-      KC_HTTP_ENABLED: "true"
-      KC_HTTP_PORT: "8180"
-      # The issuer in every token is http://localhost:8180/realms/open-raffle. Because the
-      # app container shares this network namespace (see network_mode below), that URL
-      # resolves identically for the browser and for the app.
-      KC_HOSTNAME: http://localhost:8180
-      KC_HOSTNAME_STRICT: "false"
-      KC_HEALTH_ENABLED: "true"
-    volumes:
-      - ./keycloak:/opt/keycloak/data/import:ro
-      - keycloak-data:/opt/keycloak/data/h2
-    ports:
-      - "8180:8180"   # Keycloak
-      - "8080:8080"   # Open Raffle app (published here because app shares this namespace)
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
-      interval: 5s
-      timeout: 5s
-      retries: 60
-      start_period: 20s
-
-  app:
-    build: .
-    image: open-raffle:latest
-    network_mode: "service:keycloak"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      keycloak:
-        condition: service_healthy
-    environment:
-      DB_URL: jdbc:postgresql://postgres:5432/raffle
-      DB_USER: raffle
-      DB_PASSWORD: raffle
-      KEYCLOAK_ISSUER: http://localhost:8180/realms/open-raffle
-      KEYCLOAK_CLIENT_ID: open-raffle-app
-      KEYCLOAK_CLIENT_SECRET: open-raffle-dev-secret
-      # Set this to a URL phones on your network can reach, e.g. http://192.168.1.20:8080
-      RAFFLE_PUBLIC_URL: ${RAFFLE_PUBLIC_URL:-http://localhost:8080}
-
 volumes:
   postgres-data:
-  keycloak-data:
