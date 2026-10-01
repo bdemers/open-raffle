@@ -1,0 +1,111 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+#
+# Deploys three things: the app, a Keycloak instance built from ./keycloak, and a
+# Postgres database for each. Deploy with "New > Blueprint" in the Render dashboard.
+#
+# Service names decide the public hostnames (<name>.onrender.com). If Render reports a
+# name is taken and assigns a different hostname, update the three URLs in the shared
+# env group below to match before the first successful boot: Keycloak only imports the
+# realm (and its redirect URIs) once.
+#
+# Plans: "free" works for trying it out but free web services sleep after 15 minutes
+# of inactivity (the first login of the evening would wait ~1 min for Keycloak), and a
+# free Postgres is deleted after 30 days. Switch to "free" on all four if that is fine.
+
+envVarGroups:
+  - name: open-raffle-shared
+    envVars:
+      # Shared by the app (as its OIDC client secret) and Keycloak (baked into the realm).
+      - key: KEYCLOAK_CLIENT_SECRET
+        generateValue: true
+      - key: RAFFLE_PUBLIC_URL
+        value: https://open-raffle.onrender.com
+      - key: KEYCLOAK_ISSUER
+        value: https://open-raffle-auth.onrender.com/realms/open-raffle
+
+databases:
+  - name: open-raffle-db
+    plan: 0.1c-256mb
+    databaseName: raffle
+    user: raffle
+    postgresMajorVersion: "17"
+
+  - name: open-raffle-auth-db
+    plan: 0.1c-256mb
+    databaseName: keycloak
+    user: keycloak
+    postgresMajorVersion: "17"
+
+services:
+  - type: web
+    name: open-raffle-auth
+    runtime: docker
+    dockerfilePath: ./keycloak/Dockerfile
+    dockerContext: ./keycloak
+    plan: 0.5c-512mb
+    healthCheckPath: /realms/open-raffle
+    envVars:
+      - fromGroup: open-raffle-shared
+      - key: PORT
+        value: "8080"
+      - key: KC_HOSTNAME
+        value: https://open-raffle-auth.onrender.com
+      - key: KC_BOOTSTRAP_ADMIN_USERNAME
+        value: admin
+      - key: KC_BOOTSTRAP_ADMIN_PASSWORD
+        generateValue: true
+      # Password of the seeded "organizer" user; read it from this service's Environment tab.
+      - key: OPEN_RAFFLE_ORGANIZER_PASSWORD
+        generateValue: true
+      - key: KC_DB_URL_HOST
+        fromDatabase:
+          name: open-raffle-auth-db
+          property: host
+      - key: KC_DB_URL_PORT
+        fromDatabase:
+          name: open-raffle-auth-db
+          property: port
+      - key: KC_DB_URL_DATABASE
+        fromDatabase:
+          name: open-raffle-auth-db
+          property: database
+      - key: KC_DB_USERNAME
+        fromDatabase:
+          name: open-raffle-auth-db
+          property: user
+      - key: KC_DB_PASSWORD
+        fromDatabase:
+          name: open-raffle-auth-db
+          property: password
+
+  - type: web
+    name: open-raffle
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: 0.5c-512mb
+    healthCheckPath: /actuator/health
+    envVars:
+      - fromGroup: open-raffle-shared
+      - key: KEYCLOAK_CLIENT_ID
+        value: open-raffle-app
+      - key: DB_HOST
+        fromDatabase:
+          name: open-raffle-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: open-raffle-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: open-raffle-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: open-raffle-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: open-raffle-db
+          property: password

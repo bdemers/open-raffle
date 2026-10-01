@@ -1,6 +1,8 @@
 package org.openraffle.security;
 
 import com.vaadin.flow.spring.security.VaadinWebSecurity;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -38,6 +40,8 @@ public class SecurityConfig extends VaadinWebSecurity {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+        // The hosting platform's health check must not be bounced to the login page.
+        http.authorizeHttpRequests(auth -> auth.requestMatchers(EndpointRequest.to(HealthEndpoint.class)).permitAll());
         super.configure(http);
         // Redirect unauthenticated users straight to Keycloak; after logout, send them
         // through Keycloak's end-session endpoint and back to the app root.

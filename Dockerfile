@@ -16,4 +16,6 @@ RUN useradd --system --uid 10001 raffle
 COPY --from=build /workspace/target/open-raffle-*.jar app.jar
 USER raffle
 EXPOSE 8080
+# Size the heap from the container's memory limit rather than the host's.
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

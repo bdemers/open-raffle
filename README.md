@@ -51,8 +51,10 @@ All settings are environment variables with local-dev defaults (see
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `PORT` | `8080` | HTTP port (injected by Render and similar hosts) |
 | `RAFFLE_PUBLIC_URL` | *(derived from each request)* | Base URL embedded in QR codes, e.g. `https://raffle.example.com`. Set this in production; phones must be able to open it. |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/raffle` | JDBC URL |
+| `DB_URL` | `jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}` | Full JDBC URL; or set the parts below |
+| `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `5432` / `raffle` | Database location, as managed Postgres providers hand it out |
 | `DB_USER` / `DB_PASSWORD` | `raffle` / `raffle` | Database credentials |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/open-raffle` | OIDC issuer URL of the realm |
 | `KEYCLOAK_CLIENT_ID` | `open-raffle-app` | Confidential client in that realm |
@@ -77,6 +79,41 @@ docker run -p 8080:8080 \
 
 The multi-stage `Dockerfile` builds the Vaadin production bundle, so no Node.js is needed
 at runtime. The schema is created and migrated by Hibernate (`ddl-auto=update`).
+`GET /actuator/health` answers without authentication for load-balancer health checks.
+
+## Deploying to Render
+
+`render.yaml` is a [Render Blueprint](https://render.com/docs/infrastructure-as-code) that
+creates everything: the app, a Keycloak service (built from `keycloak/Dockerfile`), and a
+Postgres database for each.
+
+1. In the Render dashboard choose **New → Blueprint** and pick this repository (the
+   `render.yaml` at the root is detected automatically).
+2. Render shows the services it will create. The public hostnames come from the service
+   names: `open-raffle.onrender.com` and `open-raffle-auth.onrender.com`. If either name
+   is taken, Render assigns a different hostname — update `RAFFLE_PUBLIC_URL`,
+   `KEYCLOAK_ISSUER` and `KC_HOSTNAME` in `render.yaml` to match **before** approving,
+   because Keycloak imports the realm (and its redirect URIs) only once.
+3. Approve. Keycloak is usually up in two to three minutes; the app's Vaadin production
+   build takes longer. If the app's first deploy fails with a connection error to the
+   issuer, Keycloak simply wasn't ready yet: trigger **Manual Deploy** once it is.
+4. Log in at `https://open-raffle.onrender.com` as `organizer`. The password is the
+   generated `OPEN_RAFFLE_ORGANIZER_PASSWORD` in the `open-raffle-auth` service's
+   **Environment** tab; the Keycloak admin console (`/admin`) uses `admin` and the
+   generated `KC_BOOTSTRAP_ADMIN_PASSWORD`. Add real organizer users there with the
+   `ADMIN` realm role.
+
+How the pieces connect:
+
+- The OIDC client secret is a single generated value in the `open-raffle-shared` env group,
+  used by the app and baked into the realm by Keycloak's entrypoint.
+- `keycloak/render-entrypoint.sh` rewrites the dev realm export at start-up: the dev secret,
+  `http://localhost:8080` redirect URIs and the `organizer` password are replaced with the
+  production values, and `sslRequired` becomes `external`. Keycloak's own `${env.…}`
+  placeholders are not substituted on import in 26.x, hence the script.
+- Both services sit behind Render's TLS proxy and trust its `X-Forwarded-*` headers.
+- Plans in `render.yaml` are the smallest paid tiers so nothing sleeps during an event;
+  change them to `free` to try it out.
 
 ## Tests
 
