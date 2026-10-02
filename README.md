@@ -1,6 +1,7 @@
 # Open Raffle
 
 [![Tests](https://github.com/dogeared/open-raffle/actions/workflows/tests.yml/badge.svg)](https://github.com/dogeared/open-raffle/actions/workflows/tests.yml)
+[![Coverage](https://raw.githubusercontent.com/dogeared/open-raffle/badges/jacoco.svg)](https://github.com/dogeared/open-raffle/actions/workflows/tests.yml)
 [![Version](https://img.shields.io/github/v/tag/dogeared/open-raffle?label=version&sort=semver)](https://github.com/dogeared/open-raffle/tags)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -139,7 +140,9 @@ mvn test
 
 The suite covers the services, QR URL resolution and Keycloak role mapping, and runs on
 every push and pull request via GitHub Actions. Tests use an in-memory H2 database, so
-neither Docker nor Keycloak is needed to run them.
+neither Docker nor Keycloak is needed to run them. `mvn test` also writes a JaCoCo coverage
+report to `target/site/jacoco/index.html`; CI turns it into the README badge on every push
+to `main`. The Vaadin views are not unit-tested, which is most of what the badge leaves out.
 
 ## Changelog
 

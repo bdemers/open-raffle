@@ -108,8 +108,9 @@ public class MainLayout extends AppLayout implements AfterNavigationObserver {
             RouteParameters params = new RouteParameters("eventId", String.valueOf(current.getId()));
             SideNavItem section = new SideNavItem(current.getName());
             section.setPrefixComponent(VaadinIcon.TICKET.create());
-            section.addItem(new SideNavItem("Participants", ParticipantsView.class, params, VaadinIcon.USERS.create()));
+            // Set up prizes first, then sell tickets, then draw.
             section.addItem(new SideNavItem("Prizes", PrizesView.class, params, VaadinIcon.GIFT.create()));
+            section.addItem(new SideNavItem("Participants", ParticipantsView.class, params, VaadinIcon.USERS.create()));
             section.addItem(new SideNavItem("Draw", DrawView.class, params, VaadinIcon.TROPHY.create()));
             section.setExpanded(true);
             nav.addItem(section);

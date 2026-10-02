@@ -22,6 +22,54 @@ jobs:
       - name: Run test suite
         run: mvn --batch-mode test
 
+      - name: Keep the coverage report for the badge job
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco
+          path: target/site/jacoco/jacoco.csv
+          if-no-files-found: error
+
+  # After a green run on main, regenerate the coverage badge on the "badges" branch, which
+  # the README embeds from raw.githubusercontent.com.
+  coverage-badge:
+    name: Coverage badge
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout badges branch
+        uses: actions/checkout@v4
+        with:
+          ref: badges
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: jacoco
+          path: report
+
+      - name: Generate badge
+        uses: cicirello/jacoco-badge-generator@v2
+        with:
+          jacoco-csv-file: report/jacoco.csv
+          badges-directory: .
+          generate-branches-badge: false
+          generate-coverage-badge: true
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add jacoco.svg
+          if git diff --staged --quiet; then
+            echo "Coverage unchanged, nothing to commit."
+            exit 0
+          fi
+          git commit -m "chore: update coverage badge"
+          git push origin badges
+
   # After a green run on main, tag the commit with the pom version (v<version>) unless
   # that tag already exists or the version is a SNAPSHOT.
   tag:
