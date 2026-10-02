@@ -4,7 +4,7 @@
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": false,
-  "loginTheme": "keycloak",
+  "loginTheme": "open-raffle",
   "roles": {
     "realm": [
       {
@@ -114,5 +114,6 @@
         "ORGANIZER"
       ]
     }
-  ]
+  ],
+  "displayNameHtml": "\ud83c\udf9f\ufe0f Open Raffle"
 }

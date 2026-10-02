@@ -78,6 +78,36 @@ Behind a reverse proxy, the app trusts `X-Forwarded-Proto`, `X-Forwarded-Host` a
 request-derived QR links use the public scheme and host. Add the public URL to the Keycloak
 client's redirect URIs.
 
+## Keycloak login theme
+
+`keycloak/themes/open-raffle/` is a Keycloak *login* theme — a CSS layer over the stock
+`keycloak` theme, so every login-flow page (sign in, forgot password, errors, OTP) gets the
+app's look: the same purple primary, system font and rounded white card. It has no
+templates of its own, which keeps it working across Keycloak upgrades.
+
+**Install it** by making the folder visible to Keycloak as `/opt/keycloak/themes/open-raffle`:
+
+- Docker Compose — bind-mount it (this is what `../local-keycloak` does for development):
+  ```yaml
+  volumes:
+    - ./path/to/open-raffle/keycloak/themes/open-raffle:/opt/keycloak/themes/open-raffle:ro
+  ```
+- A custom image — copy it in:
+  ```dockerfile
+  COPY keycloak/themes/open-raffle /opt/keycloak/themes/open-raffle
+  ```
+- Any other install — copy the folder into Keycloak's `themes/` directory.
+
+Keycloak reads the `themes/` directory on start-up, so restart it after installing. Themes
+are cached in production mode; while editing the CSS, start Keycloak with
+`KC_SPI_THEME_CACHE_THEMES=false KC_SPI_THEME_CACHE_TEMPLATES=false KC_SPI_THEME_STATIC_MAX_AGE=-1`
+(the `local-keycloak` compose sets these) so changes show on reload.
+
+**Enable it** for the realm in the admin console: **Realm settings → Themes → Login theme →
+`open-raffle`** → Save. The bundled realm export already selects it, together with the
+realm's display name (`🎟️ Open Raffle`), which the theme shows as the page header; set
+**Realm settings → General → HTML Display name** on an existing realm to match.
+
 ## Production build
 
 ```sh
@@ -118,6 +148,9 @@ working example; in an existing realm you need:
   token and the userinfo response.
 - Organizers are matched to events by the **email** of their Keycloak account, so give
   each organizer user an email.
+
+**Optional: the Open Raffle login theme.** `keycloak/themes/open-raffle` restyles Keycloak's
+login pages to match the app (see [Keycloak login theme](#keycloak-login-theme)).
 
 **2. Create the Blueprint.** In the Render dashboard choose **New → Blueprint** and pick this
 repository. You are prompted for the values marked `sync: false`:

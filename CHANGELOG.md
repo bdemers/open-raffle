@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A Keycloak login theme (`keycloak/themes/open-raffle`) that restyles the sign-in pages to
+  match the app; the bundled realm export selects it. The README explains how to install and
+  enable it on a central Keycloak.
+
 ### Changed
 - The coverage badge reads from a gist via shields.io instead of a `badges` branch, so CI no
   longer pushes to the repository after each merge.
