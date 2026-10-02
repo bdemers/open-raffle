@@ -1,7 +1,7 @@
 # Open Raffle
 
 [![Tests](https://github.com/dogeared/open-raffle/actions/workflows/tests.yml/badge.svg)](https://github.com/dogeared/open-raffle/actions/workflows/tests.yml)
-[![Coverage](https://raw.githubusercontent.com/dogeared/open-raffle/badges/jacoco.svg)](https://github.com/dogeared/open-raffle/actions/workflows/tests.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/dogeared/4eda955304a98d793584a2f69c52a7ba/raw/open-raffle-coverage.json)](https://github.com/dogeared/open-raffle/actions/workflows/tests.yml)
 [![Version](https://img.shields.io/github/v/tag/dogeared/open-raffle?label=version&sort=semver)](https://github.com/dogeared/open-raffle/tags)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -145,7 +145,8 @@ instantiate the real views in the Spring context and click through them server-s
 browser. Tests use an in-memory H2 database and a stub OIDC client registration, so neither
 Docker nor Keycloak is needed to run them; they run on every push and pull request via
 GitHub Actions. `mvn test` also writes a JaCoCo coverage report to
-`target/site/jacoco/index.html`, which CI turns into the README badge on every push to `main`.
+`target/site/jacoco/index.html`; on every push to `main`, CI publishes the percentage to a
+gist that the README badge reads.
 
 ## Changelog
 

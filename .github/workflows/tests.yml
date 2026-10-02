@@ -29,46 +29,47 @@ jobs:
           path: target/site/jacoco/jacoco.csv
           if-no-files-found: error
 
-  # After a green run on main, regenerate the coverage badge on the "badges" branch, which
-  # the README embeds from raw.githubusercontent.com.
+  # After a green run on main, publish the coverage percentage to a gist that the README's
+  # shields.io "endpoint" badge reads. Needs the GIST_SECRET repository secret: a fine-grained
+  # PAT with only the "Gists: read and write" account permission.
   coverage-badge:
     name: Coverage badge
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Checkout badges branch
-        uses: actions/checkout@v4
-        with:
-          ref: badges
-
       - name: Download coverage report
         uses: actions/download-artifact@v4
         with:
           name: jacoco
           path: report
 
-      - name: Generate badge
-        uses: cicirello/jacoco-badge-generator@v2
-        with:
-          jacoco-csv-file: report/jacoco.csv
-          badges-directory: .
-          generate-branches-badge: false
-          generate-coverage-badge: true
-
-      - name: Commit and push
+      - name: Compute instruction coverage
+        id: coverage
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add jacoco.svg
-          if git diff --staged --quiet; then
-            echo "Coverage unchanged, nothing to commit."
-            exit 0
-          fi
-          git commit -m "chore: update coverage badge"
-          git push origin badges
+          python3 - <<'EOF'
+          import csv, os
+          missed = covered = 0
+          for row in csv.DictReader(open("report/jacoco.csv")):
+              missed += int(row["INSTRUCTION_MISSED"])
+              covered += int(row["INSTRUCTION_COVERED"])
+          pct = 100.0 * covered / (missed + covered)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"percent={pct:.1f}\n")
+          print(f"instruction coverage: {pct:.1f}%")
+          EOF
+
+      - name: Update badge data in the gist
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 4eda955304a98d793584a2f69c52a7ba
+          filename: open-raffle-coverage.json
+          label: coverage
+          message: ${{ steps.coverage.outputs.percent }}%
+          valColorRange: ${{ steps.coverage.outputs.percent }}
+          minColorRange: 50
+          maxColorRange: 95
 
   # After a green run on main, tag the commit with the pom version (v<version>) unless
   # that tag already exists or the version is a SNAPSHOT.
