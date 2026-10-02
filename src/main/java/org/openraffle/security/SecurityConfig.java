@@ -4,6 +4,7 @@ import com.nimbusds.jwt.JWTParser;
 import com.vaadin.flow.spring.security.VaadinWebSecurity;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.boot.actuate.info.InfoEndpoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -34,17 +35,24 @@ import java.util.Set;
 @EnableWebSecurity
 public class SecurityConfig extends VaadinWebSecurity {
 
+    /** Manages events and who organizes them; implies {@link #ROLE_ORGANIZER}. */
     public static final String ROLE_ADMIN = "ADMIN";
+    /** Runs the events they are listed on: participants, prizes, the draw. */
+    public static final String ROLE_ORGANIZER = "ORGANIZER";
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         // The hosting platform's health check must not be bounced to the login page.
-        http.authorizeHttpRequests(auth -> auth.requestMatchers(EndpointRequest.to(HealthEndpoint.class)).permitAll());
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers(EndpointRequest.to(HealthEndpoint.class, InfoEndpoint.class)).permitAll());
         super.configure(http);
         // Redirect unauthenticated users straight to Keycloak; after logout, send them
         // through Keycloak's end-session endpoint and back to the app root.
         setOAuth2LoginPage(http, "/oauth2/authorization/keycloak", "{baseUrl}");
-        http.oauth2Login(login -> login.userInfoEndpoint(userInfo -> userInfo.oidcUserService(keycloakOidcUserService())));
+        http.oauth2Login(login -> login
+                // Where a fresh login lands when it did not start from a protected page.
+                .defaultSuccessUrl("/events")
+                .userInfoEndpoint(userInfo -> userInfo.oidcUserService(keycloakOidcUserService())));
     }
 
     /**
@@ -93,6 +101,10 @@ public class SecurityConfig extends VaadinWebSecurity {
                         mapped.add(new SimpleGrantedAuthority("ROLE_" + role));
                     }
                 }
+            }
+            // An admin can do everything an organizer can, without Keycloak needing a composite role.
+            if (mapped.contains(new SimpleGrantedAuthority("ROLE_" + ROLE_ADMIN))) {
+                mapped.add(new SimpleGrantedAuthority("ROLE_" + ROLE_ORGANIZER));
             }
             return mapped;
         };

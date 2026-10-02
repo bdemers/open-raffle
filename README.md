@@ -14,18 +14,28 @@ for Docker.
 
 ## How it works
 
-1. **Prizes** — organizers enter the prizes and order them with up/down arrows.
-2. **Participants** — each participant gets a name, an optional phone number, and the
+1. **Events** — an admin creates an event (a raffle) and lists the organizers who may run
+   it, by email. Everything below lives inside an event.
+2. **Prizes** — organizers enter the prizes and order them with up/down arrows.
+3. **Participants** — each participant gets a name, an optional phone number, and the
    contiguous range of ticket numbers they bought. Overlapping ranges are rejected.
-3. **QR code** — the app shows (and can download) a QR code per participant. It opens a
+4. **QR code** — the app shows (and can download) a QR code per participant. It opens a
    login-free page, identified by an unguessable token, where they rank the prizes they
    want and leave notes.
-4. **Draw** — type the drawn ticket number. The winner's preferences appear with a checkbox
+5. **Draw** — type the drawn ticket number. The winner's preferences appear with a checkbox
    per prize; tick the one they take. Prizes already claimed by earlier winners are struck
    through. Prizes not on their list can be given out too, and new prizes can be added and
    handed over on the spot.
 
-Organizer pages require a Keycloak login with the `ADMIN` realm role.
+Two Keycloak realm roles control access:
+
+| Role | Can |
+| --- | --- |
+| `ORGANIZER` | Open the events they are listed on and run them: participants, prizes, draw |
+| `ADMIN` | Everything an organizer can, on every event, plus create, edit, delete and reinstate events and assign organizers |
+
+The public landing page at `/` needs no login; after logging in, organizers pick an event
+and admins see the event list.
 
 ## Running locally
 
@@ -41,8 +51,10 @@ docker compose up -d                                   # Postgres
 mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8081
 ```
 
-Open http://localhost:8081 and log in. Keep the app and the browser reaching Keycloak at
-the same URL: OIDC validates the token issuer against the configured issuer.
+Open http://localhost:8081 and log in. The bundled realm has `organizer` / `organizer`
+(`ADMIN`) and `helper` / `helper` (`ORGANIZER`; add `helper@example.com` to an event to see
+the organizer experience). Keep the app and the browser reaching Keycloak at the same URL:
+OIDC validates the token issuer against the configured issuer.
 
 ## Configuration
 
@@ -77,7 +89,8 @@ docker run -p 8080:8080 \
 
 The multi-stage `Dockerfile` builds the Vaadin production bundle, so no Node.js is needed
 at runtime. The schema is created and migrated by Hibernate (`ddl-auto=update`).
-`GET /actuator/health` answers without authentication for load-balancer health checks.
+`GET /actuator/health` answers without authentication for load-balancer health checks, and
+`GET /actuator/info` reports the running version (also shown in every page's footer).
 
 ## Deploying to Render
 
@@ -94,12 +107,15 @@ working example; in an existing realm you need:
   - Valid redirect URIs: `https://<app host>/login/oauth2/code/keycloak`
   - Valid post logout redirect URIs: `https://<app host>/*`
   - Web origins: `https://<app host>`
-- a realm role `ADMIN` (Realm roles → Create role, not a client role), assigned to every
-  organizer: Users → the user → Role mapping → Assign role, then switch the dialog's
+- realm roles `ORGANIZER` and `ADMIN` (Realm roles → Create role, not client roles).
+  Assign them under Users → the user → Role mapping → Assign role, switching the dialog's
   filter from **Filter by clients** (the default, which hides realm roles) to **Filter by
-  realm roles** and tick `ADMIN`. Keycloak's default `roles` client scope already puts
-  realm roles in the access token, which is enough: the app reads `realm_access.roles`
-  from the access token, the ID token and the userinfo response.
+  realm roles**. `ADMIN` implies `ORGANIZER` inside the app, so no composite role is
+  needed. Keycloak's default `roles` client scope already puts realm roles in the access
+  token, which is enough: the app reads `realm_access.roles` from the access token, the ID
+  token and the userinfo response.
+- Organizers are matched to events by the **email** of their Keycloak account, so give
+  each organizer user an email.
 
 **2. Create the Blueprint.** In the Render dashboard choose **New → Blueprint** and pick this
 repository. You are prompted for the values marked `sync: false`:

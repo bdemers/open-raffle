@@ -21,6 +21,11 @@ public class Prize {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Required; nullable in the schema only for rows that predate events (see Participant). */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "event_id")
+    private Event event;
+
     @NotBlank
     @Column(nullable = false)
     private String name;
@@ -41,6 +46,14 @@ public class Prize {
 
     public Long getId() {
         return id;
+    }
+
+    public Event getEvent() {
+        return event;
+    }
+
+    public void setEvent(Event event) {
+        this.event = event;
     }
 
     public String getName() {

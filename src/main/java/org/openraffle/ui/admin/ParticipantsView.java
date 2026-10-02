@@ -21,14 +21,18 @@ import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.RolesAllowed;
+import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
 import org.openraffle.security.SecurityConfig;
+import org.openraffle.service.EventService;
 import org.openraffle.service.ParticipantService;
 import org.openraffle.service.ParticipantService.TicketRangeConflictException;
 import org.openraffle.service.QrCodeService;
@@ -37,21 +41,24 @@ import org.openraffle.ui.MainLayout;
 import java.io.ByteArrayInputStream;
 import java.util.stream.Collectors;
 
-@Route(value = "", layout = MainLayout.class)
+@Route(value = "events/:eventId", layout = MainLayout.class)
 @PageTitle("Participants | Open Raffle")
-@RolesAllowed(SecurityConfig.ROLE_ADMIN)
-public class ParticipantsView extends VerticalLayout {
+@RolesAllowed({SecurityConfig.ROLE_ORGANIZER, SecurityConfig.ROLE_ADMIN})
+public class ParticipantsView extends VerticalLayout implements BeforeEnterObserver {
 
     private final ParticipantService participantService;
     private final QrCodeService qrCodeService;
+    private final EventService eventService;
     private final Grid<Participant> grid = new Grid<>(Participant.class, false);
+    private Event event;
 
-    public ParticipantsView(ParticipantService participantService, QrCodeService qrCodeService) {
+    public ParticipantsView(ParticipantService participantService, QrCodeService qrCodeService, EventService eventService) {
         this.participantService = participantService;
         this.qrCodeService = qrCodeService;
+        this.eventService = eventService;
         setSizeFull();
 
-        Button add = new Button("Add participant", VaadinIcon.PLUS.create(), e -> openEditor(new Participant()));
+        Button add = new Button("Add participant", VaadinIcon.PLUS.create(), e -> openEditor(newParticipant()));
         add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         H2 heading = new H2("Participants");
         HorizontalLayout toolbar = new HorizontalLayout(heading, add);
@@ -82,11 +89,24 @@ public class ParticipantsView extends VerticalLayout {
         grid.setSizeFull();
 
         add(toolbar, grid);
-        refresh();
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent enter) {
+        EventScopedView.resolve(enter, eventService).ifPresent(e -> {
+            event = e;
+            refresh();
+        });
+    }
+
+    private Participant newParticipant() {
+        Participant p = new Participant();
+        p.setEvent(event);
+        return p;
     }
 
     private void refresh() {
-        grid.setItems(participantService.findAll());
+        grid.setItems(participantService.findAll(event));
     }
 
     private void openEditor(Participant participant) {

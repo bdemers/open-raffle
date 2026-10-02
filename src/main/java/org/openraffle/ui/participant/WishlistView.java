@@ -24,6 +24,8 @@ import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
 import org.openraffle.service.ParticipantService;
 import org.openraffle.service.PrizeService;
+import org.openraffle.ui.AppFooter;
+import org.openraffle.ui.AppVersion;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +41,7 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
 
     private final ParticipantService participantService;
     private final PrizeService prizeService;
+    private final AppVersion version;
 
     private Participant participant;
     private List<Prize> allPrizes = List.of();
@@ -48,9 +51,10 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
     private final Div picksList = new Div();
     private final TextArea notes = new TextArea("Anything else? (optional)");
 
-    public WishlistView(ParticipantService participantService, PrizeService prizeService) {
+    public WishlistView(ParticipantService participantService, PrizeService prizeService, AppVersion version) {
         this.participantService = participantService;
         this.prizeService = prizeService;
+        this.version = version;
         setMaxWidth("640px");
         addClassNames(LumoUtility.Margin.Horizontal.AUTO, LumoUtility.Padding.MEDIUM);
     }
@@ -62,10 +66,17 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
         removeAll();
         if (participant == null) {
             add(new H1("Hmm, that link isn't valid"),
-                    new Paragraph("Please ask the raffle organizer for a new QR code."));
+                    new Paragraph("Please ask the raffle organizer for a new QR code."),
+                    new AppFooter(version));
             return;
         }
-        allPrizes = prizeService.findAll();
+        if (participant.getEvent() == null || participant.getEvent().isDeleted()) {
+            add(new H1("This raffle is over"),
+                    new Paragraph("Thanks for taking part! This link no longer accepts wishlists."),
+                    new AppFooter(version));
+            return;
+        }
+        allPrizes = prizeService.findAll(participant.getEvent());
         picks.clear();
         picks.addAll(participant.getWishlist());
         notes.setValue(participant.getNotes() == null ? "" : participant.getNotes());
@@ -74,6 +85,9 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
 
     private void build() {
         H1 title = new H1("Hi " + participant.getName() + "!");
+        Span eventName = new Span(participant.getEvent().getName());
+        eventName.addClassNames(LumoUtility.FontSize.SMALL, LumoUtility.TextColor.TERTIARY,
+                LumoUtility.TextTransform.UPPERCASE, LumoUtility.FontWeight.SEMIBOLD);
         Paragraph intro = new Paragraph("You hold ticket"
                 + (participant.getTicketCount() == 1 ? " " : "s ") + participant.getTicketRangeLabel()
                 + ". Pick the prizes you'd like if one of your tickets is drawn, most wanted first.");
@@ -90,7 +104,7 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_LARGE);
         save.setWidthFull();
 
-        add(title, intro,
+        add(eventName, title, intro,
                 new H3("Your picks"), picksList,
                 new H3("Available prizes"), availableList,
                 notes, save);
@@ -99,6 +113,7 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
             saved.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.TERTIARY);
             add(saved);
         }
+        add(new AppFooter(version));
         render();
     }
 

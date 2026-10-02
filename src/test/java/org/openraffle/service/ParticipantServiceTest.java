@@ -1,6 +1,8 @@
 package org.openraffle.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
 import org.openraffle.repository.ParticipantRepository;
@@ -34,6 +36,34 @@ class ParticipantServiceTest {
 
     @Autowired
     TestEntityManager em;
+
+    private Event event;
+
+    @BeforeEach
+    void event() {
+        event = event("Fair");
+    }
+
+    @Test
+    void ticketRangesAreScopedToTheEvent() {
+        Event other = event("Other fair");
+        participantService.save(participant("Ann", 1, 10));
+        Participant bob = participant("Bob", 1, 10);
+        bob.setEvent(other);
+
+        assertThat(participantService.save(bob).getId()).isNotNull();
+        assertThat(participantService.findByTicket(event, 5)).get().extracting(Participant::getName).isEqualTo("Ann");
+        assertThat(participantService.findByTicket(other, 5)).get().extracting(Participant::getName).isEqualTo("Bob");
+        assertThat(participantService.findAll(event)).extracting(Participant::getName).containsExactly("Ann");
+    }
+
+    @Test
+    void participantsMustBelongToAnEvent() {
+        Participant orphan = participant("Nobody", 1, 1);
+        orphan.setEvent(null);
+
+        assertThatThrownBy(() -> participantService.save(orphan)).isInstanceOf(IllegalArgumentException.class);
+    }
 
     @Test
     void saveIssuesAnUnguessableTokenThatLooksTheParticipantUp() {
@@ -75,10 +105,10 @@ class ParticipantServiceTest {
     void findByTicketCoversTheWholeRangeInclusive() {
         Participant ann = participantService.save(participant("Ann", 100, 104));
 
-        assertThat(participantService.findByTicket(100)).contains(ann);
-        assertThat(participantService.findByTicket(104)).contains(ann);
-        assertThat(participantService.findByTicket(99)).isEmpty();
-        assertThat(participantService.findByTicket(105)).isEmpty();
+        assertThat(participantService.findByTicket(event, 100)).contains(ann);
+        assertThat(participantService.findByTicket(event, 104)).contains(ann);
+        assertThat(participantService.findByTicket(event, 99)).isEmpty();
+        assertThat(participantService.findByTicket(event, 105)).isEmpty();
     }
 
     @Test
@@ -137,17 +167,25 @@ class ParticipantServiceTest {
         assertThat(reloaded.isClaimed()).isFalse();
     }
 
-    private static Participant participant(String name, long start, long end) {
+    private Participant participant(String name, long start, long end) {
         Participant p = new Participant();
+        p.setEvent(event);
         p.setName(name);
         p.setTicketStart(start);
         p.setTicketEnd(end);
         return p;
     }
 
-    private static Prize prize(String name) {
+    private Prize prize(String name) {
         Prize prize = new Prize();
+        prize.setEvent(event);
         prize.setName(name);
         return prize;
+    }
+
+    private Event event(String name) {
+        Event e = new Event();
+        e.setName(name);
+        return em.persistAndFlush(e);
     }
 }

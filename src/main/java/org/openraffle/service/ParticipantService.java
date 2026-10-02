@@ -1,5 +1,6 @@
 package org.openraffle.service;
 
+import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
 import org.openraffle.repository.ParticipantRepository;
@@ -28,8 +29,8 @@ public class ParticipantService {
     }
 
     @Transactional(readOnly = true)
-    public List<Participant> findAll() {
-        return participants.findAllByOrderByTicketStartAsc();
+    public List<Participant> findAll(Event event) {
+        return participants.findAllByEventOrderByTicketStartAsc(event);
     }
 
     @Transactional(readOnly = true)
@@ -38,21 +39,25 @@ public class ParticipantService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<Participant> findByTicket(long ticket) {
-        return participants.findFirstByTicketStartLessThanEqualAndTicketEndGreaterThanEqual(ticket, ticket);
+    public Optional<Participant> findByTicket(Event event, long ticket) {
+        return participants.findFirstByEventAndTicketStartLessThanEqualAndTicketEndGreaterThanEqual(event, ticket, ticket);
     }
 
     /**
-     * Saves a participant after validating the ticket range does not overlap any other participant.
+     * Saves a participant after validating the ticket range does not overlap any other
+     * participant of the same event.
      *
      * @throws TicketRangeConflictException if the range overlaps another participant's tickets
      */
     public Participant save(Participant participant) {
+        if (participant.getEvent() == null) {
+            throw new IllegalArgumentException("Participant must belong to an event");
+        }
         if (participant.getTicketStart() > participant.getTicketEnd()) {
             throw new IllegalArgumentException("Ticket start must be less than or equal to ticket end");
         }
         List<Participant> overlaps = participants.findOverlapping(
-                participant.getTicketStart(), participant.getTicketEnd(), participant.getId());
+                participant.getEvent(), participant.getTicketStart(), participant.getTicketEnd(), participant.getId());
         if (!overlaps.isEmpty()) {
             throw new TicketRangeConflictException(overlaps);
         }
