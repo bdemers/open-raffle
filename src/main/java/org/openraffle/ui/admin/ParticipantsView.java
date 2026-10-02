@@ -76,8 +76,8 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
             Button name = new Button(p.getName(), e -> openEditor(p));
             name.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
             return name;
-        }).setHeader("Name").setAutoWidth(true).setSortable(true).setComparator(Participant::getName);
-        grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setAutoWidth(true)
+        }).setHeader("Name").setKey("name").setAutoWidth(true).setSortable(true).setComparator(Participant::getName);
+        grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setKey("tickets").setAutoWidth(true)
                 .setComparator(Participant::getTicketStart).setSortable(true);
         grid.addColumn(Participant::getTicketCount).setHeader("Count").setAutoWidth(true).setFlexGrow(0);
         // The wishlist summary opens a dialog with the full ranked list.
@@ -91,7 +91,7 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
             open.setTooltipText("Show " + p.getName() + "'s picks");
             open.getStyle().set("white-space", "normal").set("text-align", "left");
             return open;
-        }).setHeader("Wishlist (in order)").setFlexGrow(1);
+        }).setHeader("Wishlist (in order)").setKey("wishlist").setFlexGrow(1);
         grid.addComponentColumn(p -> {
             Button qr = new Button(VaadinIcon.QRCODE.create(), e -> showQr(p));
             qr.setTooltipText("Show QR code");
@@ -102,7 +102,7 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
             actions.getChildren().forEach(c -> ((Button) c)
                     .addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL));
             return actions;
-        }).setHeader("").setAutoWidth(true).setFlexGrow(0);
+        }).setHeader("").setKey("actions").setAutoWidth(true).setFlexGrow(0);
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
         grid.setSizeFull();
 

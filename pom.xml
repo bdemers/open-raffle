@@ -21,6 +21,7 @@
         <java.version>21</java.version>
         <vaadin.version>24.8.17</vaadin.version>
         <jacoco.version>0.8.15</jacoco.version>
+        <karibu.version>2.5.0</karibu.version>
         <zxing.version>3.5.3</zxing.version>
     </properties>
 
@@ -84,6 +85,19 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Server-side UI tests: views are instantiated and driven without a browser. -->
+        <dependency>
+            <groupId>com.github.mvysny.kaributesting</groupId>
+            <artifactId>karibu-testing-v10</artifactId>
+            <version>${karibu.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.mvysny.kaributesting</groupId>
+            <artifactId>karibu-testing-v10-spring</artifactId>
+            <version>${karibu.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -110,14 +110,14 @@ public class EventsView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void buildAdminGrid() {
-        grid.addColumn(Event::getName).setHeader("Name").setAutoWidth(true).setSortable(true);
+        grid.addColumn(Event::getName).setHeader("Name").setKey("name").setAutoWidth(true).setSortable(true);
         grid.addComponentColumn(e -> {
             Span badge = new Span(e.isDeleted() ? "Deleted" : "Active");
             badge.getElement().getThemeList().add(e.isDeleted() ? "badge error" : "badge success");
             return badge;
-        }).setHeader("Status").setAutoWidth(true).setFlexGrow(0);
+        }).setHeader("Status").setKey("status").setAutoWidth(true).setFlexGrow(0);
         grid.addColumn(e -> e.getOrganizerEmails().isEmpty() ? "—" : String.join(", ", e.getOrganizerEmails()))
-                .setHeader("Organizers").setFlexGrow(1);
+                .setHeader("Organizers").setKey("organizers").setFlexGrow(1);
         grid.addComponentColumn(e -> {
             Button open = new Button("Open", VaadinIcon.ARROW_RIGHT.create(), click -> open(e));
             open.setIconAfterText(true);
@@ -135,7 +135,7 @@ public class EventsView extends VerticalLayout implements BeforeEnterObserver {
             actions.getChildren().forEach(c -> ((Button) c)
                     .addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL));
             return actions;
-        }).setHeader("").setAutoWidth(true).setFlexGrow(0);
+        }).setHeader("").setKey("actions").setAutoWidth(true).setFlexGrow(0);
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
         grid.setSizeFull();
     }
