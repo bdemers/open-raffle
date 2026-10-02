@@ -21,3 +21,44 @@ jobs:
 
       - name: Run test suite
         run: mvn --batch-mode test
+
+  # After a green run on main, tag the commit with the pom version (v<version>) unless
+  # that tag already exists or the version is a SNAPSHOT.
+  tag:
+    name: Tag release
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Tag v<project version> if missing
+        run: |
+          # The first <version> in pom.xml is the Spring Boot parent's; ask Maven instead.
+          VERSION=$(mvn --batch-mode --quiet help:evaluate -Dexpression=project.version -DforceStdout)
+          TAG="v$VERSION"
+          echo "Project version: $VERSION"
+          case "$VERSION" in
+            *-SNAPSHOT) echo "Snapshot version, not tagging."; exit 0 ;;
+          esac
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "$TAG already exists, nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Open Raffle $VERSION"
+          git push origin "$TAG"
+          echo "Pushed $TAG at $(git rev-parse --short HEAD)"
