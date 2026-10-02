@@ -83,37 +83,37 @@ at runtime. The schema is created and migrated by Hibernate (`ddl-auto=update`).
 
 ## Deploying to Render
 
-`render.yaml` is a [Render Blueprint](https://render.com/docs/infrastructure-as-code) that
-creates everything: the app, a Keycloak service (built from `keycloak/Dockerfile`), and a
-Postgres database for each.
+`render.yaml` is a [Render Blueprint](https://render.com/docs/infrastructure-as-code) for the
+app and its Postgres database. Keycloak is not part of it: the app connects to an existing,
+centrally managed Keycloak, the same way local development uses a shared instance.
 
-1. In the Render dashboard choose **New → Blueprint** and pick this repository (the
-   `render.yaml` at the root is detected automatically).
-2. Render shows the services it will create. The public hostnames come from the service
-   names: `open-raffle.onrender.com` and `open-raffle-auth.onrender.com`. If either name
-   is taken, Render assigns a different hostname — update `RAFFLE_PUBLIC_URL`,
-   `KEYCLOAK_ISSUER` and `KC_HOSTNAME` in `render.yaml` to match **before** approving,
-   because Keycloak imports the realm (and its redirect URIs) only once.
-3. Approve. Keycloak is usually up in two to three minutes; the app's Vaadin production
-   build takes longer. If the app's first deploy fails with a connection error to the
-   issuer, Keycloak simply wasn't ready yet: trigger **Manual Deploy** once it is.
-4. Log in at `https://open-raffle.onrender.com` as `organizer`. The password is the
-   generated `OPEN_RAFFLE_ORGANIZER_PASSWORD` in the `open-raffle-auth` service's
-   **Environment** tab; the Keycloak admin console (`/admin`) uses `admin` and the
-   generated `KC_BOOTSTRAP_ADMIN_PASSWORD`. Add real organizer users there with the
-   `ADMIN` realm role.
+**1. Prepare the client in your Keycloak.** `keycloak/open-raffle-realm.json` is a complete
+working example; in an existing realm you need:
 
-How the pieces connect:
+- a confidential OpenID Connect client (`open-raffle-app` unless you change
+  `KEYCLOAK_CLIENT_ID`) with Standard flow enabled, PKCE method `S256`, and
+  - Valid redirect URIs: `https://<app host>/login/oauth2/code/keycloak`
+  - Valid post logout redirect URIs: `https://<app host>/*`
+  - Web origins: `https://<app host>`
+- a realm role `ADMIN`, assigned to every organizer;
+- the realm roles must reach the app as `realm_access.roles` in the ID token **or** the
+  userinfo response. Turning on *Add to ID token* for the client's realm-roles mapper is
+  the simplest; the example realm does exactly that.
 
-- The OIDC client secret is a single generated value in the `open-raffle-shared` env group,
-  used by the app and baked into the realm by Keycloak's entrypoint.
-- `keycloak/render-entrypoint.sh` rewrites the dev realm export at start-up: the dev secret,
-  `http://localhost:8080` redirect URIs and the `organizer` password are replaced with the
-  production values, and `sslRequired` becomes `external`. Keycloak's own `${env.…}`
-  placeholders are not substituted on import in 26.x, hence the script.
-- Both services sit behind Render's TLS proxy and trust its `X-Forwarded-*` headers.
-- Plans in `render.yaml` are the smallest paid tiers so nothing sleeps during an event;
-  change them to `free` to try it out.
+**2. Create the Blueprint.** In the Render dashboard choose **New → Blueprint** and pick this
+repository. You are prompted for the values marked `sync: false`:
+
+| Variable | Example |
+| --- | --- |
+| `RAFFLE_PUBLIC_URL` | `https://open-raffle.onrender.com` (or your custom domain) |
+| `KEYCLOAK_ISSUER` | `https://auth.example.com/realms/open-raffle` |
+| `KEYCLOAK_CLIENT_SECRET` | the client's secret from Keycloak |
+
+The database variables are wired automatically. The app sits behind Render's TLS proxy and
+trusts its `X-Forwarded-*` headers, so OIDC redirects use the public `https://` URL.
+
+The plans in `render.yaml` are the smallest paid tiers so nothing sleeps during an event;
+change them to `free` to try it out.
 
 ## Tests
 
