@@ -6,8 +6,8 @@
 #
 # Set up in the central Keycloak beforehand (keycloak/open-raffle-realm.json shows a
 # complete working example):
-#   - a confidential OpenID Connect client (default id: open-raffle-app) with
-#       Standard flow on, PKCE method S256,
+#   - a PUBLIC OpenID Connect client (default id: open-raffle-app; no client secret) with
+#       Standard flow on, PKCE method S256 required,
 #       Valid redirect URIs:      https://<app host>/login/oauth2/code/keycloak
 #       Post logout redirect URIs: https://<app host>/*
 #       Web origins:               https://<app host>
@@ -48,8 +48,6 @@ services:
         sync: false
       - key: KEYCLOAK_CLIENT_ID
         value: open-raffle-app
-      - key: KEYCLOAK_CLIENT_SECRET
-        sync: false
       - key: DB_HOST
         fromDatabase:
           name: open-raffle-db
