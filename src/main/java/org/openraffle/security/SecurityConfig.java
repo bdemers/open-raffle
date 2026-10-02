@@ -1,6 +1,8 @@
 package org.openraffle.security;
 
 import com.vaadin.flow.spring.security.VaadinWebSecurity;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -38,6 +40,8 @@ public class SecurityConfig extends VaadinWebSecurity {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+        // The hosting platform's health check must not be bounced to the login page.
+        http.authorizeHttpRequests(auth -> auth.requestMatchers(EndpointRequest.to(HealthEndpoint.class)).permitAll());
         super.configure(http);
         // Redirect unauthenticated users straight to Keycloak; after logout, send them
         // through Keycloak's end-session endpoint and back to the app root.
@@ -52,20 +56,26 @@ public class SecurityConfig extends VaadinWebSecurity {
 
     /**
      * Keycloak puts realm roles under {@code realm_access.roles}. Map them to
-     * {@code ROLE_*} authorities so Vaadin's {@code @RolesAllowed} works.
+     * {@code ROLE_*} authorities so Vaadin's {@code @RolesAllowed} works. The claim is
+     * looked for in the ID token and in the userinfo response, since which one carries
+     * it depends on how the client's realm-roles mapper is configured in Keycloak.
      */
     @Bean
     GrantedAuthoritiesMapper keycloakAuthoritiesMapper() {
         return authorities -> {
             Set<GrantedAuthority> mapped = new HashSet<>(authorities);
             for (GrantedAuthority authority : authorities) {
-                Map<String, Object> claims = switch (authority) {
-                    case OidcUserAuthority oidc -> oidc.getIdToken().getClaims();
-                    case OAuth2UserAuthority oauth -> oauth.getAttributes();
-                    default -> Map.of();
+                List<Map<String, Object>> claimSources = switch (authority) {
+                    case OidcUserAuthority oidc -> oidc.getUserInfo() == null
+                            ? List.of(oidc.getIdToken().getClaims())
+                            : List.of(oidc.getIdToken().getClaims(), oidc.getUserInfo().getClaims());
+                    case OAuth2UserAuthority oauth -> List.of(oauth.getAttributes());
+                    default -> List.of();
                 };
-                for (String role : realmRoles(claims)) {
-                    mapped.add(new SimpleGrantedAuthority("ROLE_" + role));
+                for (Map<String, Object> claims : claimSources) {
+                    for (String role : realmRoles(claims)) {
+                        mapped.add(new SimpleGrantedAuthority("ROLE_" + role));
+                    }
                 }
             }
             return mapped;

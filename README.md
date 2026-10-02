@@ -51,8 +51,10 @@ All settings are environment variables with local-dev defaults (see
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `PORT` | `8080` | HTTP port (injected by Render and similar hosts) |
 | `RAFFLE_PUBLIC_URL` | *(derived from each request)* | Base URL embedded in QR codes, e.g. `https://raffle.example.com`. Set this in production; phones must be able to open it. |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/raffle` | JDBC URL |
+| `DB_URL` | `jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}` | Full JDBC URL; or set the parts below |
+| `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `5432` / `raffle` | Database location, as managed Postgres providers hand it out |
 | `DB_USER` / `DB_PASSWORD` | `raffle` / `raffle` | Database credentials |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/open-raffle` | OIDC issuer URL of the realm |
 | `KEYCLOAK_CLIENT_ID` | `open-raffle-app` | Confidential client in that realm |
@@ -77,6 +79,41 @@ docker run -p 8080:8080 \
 
 The multi-stage `Dockerfile` builds the Vaadin production bundle, so no Node.js is needed
 at runtime. The schema is created and migrated by Hibernate (`ddl-auto=update`).
+`GET /actuator/health` answers without authentication for load-balancer health checks.
+
+## Deploying to Render
+
+`render.yaml` is a [Render Blueprint](https://render.com/docs/infrastructure-as-code) for the
+app and its Postgres database. Keycloak is not part of it: the app connects to an existing,
+centrally managed Keycloak, the same way local development uses a shared instance.
+
+**1. Prepare the client in your Keycloak.** `keycloak/open-raffle-realm.json` is a complete
+working example; in an existing realm you need:
+
+- a confidential OpenID Connect client (`open-raffle-app` unless you change
+  `KEYCLOAK_CLIENT_ID`) with Standard flow enabled, PKCE method `S256`, and
+  - Valid redirect URIs: `https://<app host>/login/oauth2/code/keycloak`
+  - Valid post logout redirect URIs: `https://<app host>/*`
+  - Web origins: `https://<app host>`
+- a realm role `ADMIN`, assigned to every organizer;
+- the realm roles must reach the app as `realm_access.roles` in the ID token **or** the
+  userinfo response. Turning on *Add to ID token* for the client's realm-roles mapper is
+  the simplest; the example realm does exactly that.
+
+**2. Create the Blueprint.** In the Render dashboard choose **New → Blueprint** and pick this
+repository. You are prompted for the values marked `sync: false`:
+
+| Variable | Example |
+| --- | --- |
+| `RAFFLE_PUBLIC_URL` | `https://open-raffle.onrender.com` (or your custom domain) |
+| `KEYCLOAK_ISSUER` | `https://auth.example.com/realms/open-raffle` |
+| `KEYCLOAK_CLIENT_SECRET` | the client's secret from Keycloak |
+
+The database variables are wired automatically. The app sits behind Render's TLS proxy and
+trusts its `X-Forwarded-*` headers, so OIDC redirects use the public `https://` URL.
+
+The plans in `render.yaml` are the smallest paid tiers so nothing sleeps during an event;
+change them to `free` to try it out.
 
 ## Tests
 

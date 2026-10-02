@@ -5,6 +5,22 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-10-01
+
+### Added
+- **Render deployment.** `render.yaml` Blueprint that provisions the app and its Postgres
+  database and prompts for the connection details of an existing, centrally managed Keycloak
+  (`KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_SECRET`, `RAFFLE_PUBLIC_URL`). The README documents
+  what the Keycloak client needs.
+- `GET /actuator/health` without authentication, for platform health checks.
+- `PORT` is honoured for the HTTP port, and the database can be configured as
+  `DB_HOST`/`DB_PORT`/`DB_NAME` as well as a full `DB_URL`.
+
+### Changed
+- Realm roles are read from the userinfo response as well as the ID token, so a realm whose
+  roles mapper does not add them to the ID token still grants organizer access.
+- The JVM sizes its heap from the container memory limit (`-XX:MaxRAMPercentage=75`).
+
 ## [0.1.0] - 2026-10-01
 
 ### Added
@@ -28,4 +44,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
+[0.1.1]: https://github.com/dogeared/open-raffle/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/dogeared/open-raffle/releases/tag/v0.1.0

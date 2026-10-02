@@ -1,0 +1,72 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+#
+# Deploys the app and its Postgres database. Keycloak is NOT part of this blueprint: the
+# app connects to an existing, centrally managed Keycloak. During "New > Blueprint" in the
+# Render dashboard you are prompted for every value marked `sync: false`.
+#
+# Set up in the central Keycloak beforehand (keycloak/open-raffle-realm.json shows a
+# complete working example):
+#   - a confidential OpenID Connect client (default id: open-raffle-app) with
+#       Standard flow on, PKCE method S256,
+#       Valid redirect URIs:      https://<app host>/login/oauth2/code/keycloak
+#       Post logout redirect URIs: https://<app host>/*
+#       Web origins:               https://<app host>
+#   - a realm role named ADMIN, assigned to every organizer
+#   - the realm roles must reach the app: either turn on "Add to ID token" for the
+#     client's realm-roles mapper, or make sure the roles are in the userinfo response
+#     (the app reads realm_access.roles from both)
+#
+# Plan "0.5c-512mb" is the smallest paid tier so the app does not sleep during an event;
+# use "free" (web) and "free" (Postgres, deleted after 30 days) to try it out.
+
+databases:
+  - name: open-raffle-db
+    plan: 0.1c-256mb
+    databaseName: raffle
+    user: raffle
+    postgresMajorVersion: "17"
+
+services:
+  - type: web
+    name: open-raffle
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: 0.5c-512mb
+    healthCheckPath: /actuator/health
+    # Deploy a push to the linked branch (main) only once its GitHub checks (the Tests
+    # workflow) have passed. "commit" deploys immediately; "off" leaves it manual.
+    autoDeployTrigger: checksPass
+    envVars:
+      # Public URL of this service, embedded in participant QR codes,
+      # e.g. https://open-raffle.onrender.com or your custom domain.
+      - key: RAFFLE_PUBLIC_URL
+        sync: false
+      # Issuer of the realm in the central Keycloak,
+      # e.g. https://auth.example.com/realms/open-raffle
+      - key: KEYCLOAK_ISSUER
+        sync: false
+      - key: KEYCLOAK_CLIENT_ID
+        value: open-raffle-app
+      - key: KEYCLOAK_CLIENT_SECRET
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: open-raffle-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: open-raffle-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: open-raffle-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: open-raffle-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: open-raffle-db
+          property: password
