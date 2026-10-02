@@ -12,9 +12,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.openraffle.domain.Event;
+import org.openraffle.domain.Organizer;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
 import org.openraffle.repository.EventRepository;
+import org.openraffle.repository.OrganizerRepository;
 import org.openraffle.repository.ParticipantRepository;
 import org.openraffle.repository.PrizeRepository;
 import org.openraffle.security.SecurityConfig;
@@ -88,6 +90,8 @@ public abstract class KaribuTest {
     protected ParticipantRepository participants;
     @Autowired
     protected PrizeRepository prizes;
+    @Autowired
+    protected OrganizerRepository organizers;
 
     @BeforeAll
     static void discoverRoutes() {
@@ -135,6 +139,12 @@ public abstract class KaribuTest {
         participants.deleteAll();
         prizes.deleteAll();
         events.deleteAll();
+        organizers.deleteAll();
+    }
+
+    /** Someone the app has seen log in as an organizer. */
+    protected Organizer knownOrganizer(String email, String name) {
+        return organizers.save(new Organizer(email, name));
     }
 
     // --- users -----------------------------------------------------------------------

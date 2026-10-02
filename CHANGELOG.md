@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Organizer picker.** The event editor offers everyone who has logged in as an organizer
+  (name and email) in a multi-select, instead of a box for typing emails. Someone who has not
+  logged in yet can still be added by typing their email. The event list shows organizer names
+  where known.
 - A Keycloak login theme (`keycloak/themes/open-raffle`) that restyles the sign-in pages to
   match the app; the bundled realm export selects it. The README explains how to install and
   enable it on a central Keycloak.

@@ -6,12 +6,15 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.ComponentUtil;
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.textfield.TextField;
 import org.junit.jupiter.api.Test;
 import org.openraffle.domain.Event;
 import org.openraffle.ui.admin.ParticipantsView;
 import org.openraffle.ui.events.EventsView;
+
+import java.util.Set;
 
 import static com.github.mvysny.kaributesting.v10.GridKt._get;
 import static com.github.mvysny.kaributesting.v10.GridKt._getCellComponent;
@@ -53,13 +56,70 @@ class EventsViewTest extends KaribuTest {
 
         _click(_get(Button.class, spec -> spec.withText("New event")));
         _setValue(_get(TextField.class, spec -> spec.withLabel("Name")), "Autumn fair");
-        _setValue(_get(TextArea.class, spec -> spec.withLabel("Organizer emails")), "Sam@Example.com\nkim@example.com");
+        _setValue(organizerPicker(), Set.of("sam@example.com"));
         _click(_get(Button.class, spec -> spec.withText("Save")));
 
         _assertNoDialogs();
         assertThat(_size(grid())).isEqualTo(2);
         Event autumn = events.findByNameIgnoreCase("Autumn fair").orElseThrow();
-        assertThat(autumn.getOrganizerEmails()).containsExactly("sam@example.com", "kim@example.com");
+        assertThat(autumn.getOrganizerEmails()).containsExactly("sam@example.com");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static MultiSelectComboBox<String> organizerPicker() {
+        return _get(MultiSelectComboBox.class, spec -> spec.withLabel("Organizers"));
+    }
+
+    private static void typeCustomEmail(MultiSelectComboBox<String> picker, String typed) {
+        ComponentUtil.fireEvent(picker, new MultiSelectComboBox.CustomValueSetEvent<>(picker, true, typed));
+    }
+
+    @Test
+    void thePickerOffersKnownOrganizersAndAcceptsTypedEmails() {
+        knownOrganizer("pat@example.com", "Pat Smith");
+        knownOrganizer("sam@example.com", "Sam Jones");
+        loginAsAdmin();
+        start();
+        navigate("events");
+
+        _click(_get(Button.class, spec -> spec.withText("New event")));
+        MultiSelectComboBox<String> picker = organizerPicker();
+        assertThat(picker.getListDataView().getItems()).containsExactly("pat@example.com", "sam@example.com");
+        assertThat(picker.getItemLabelGenerator().apply("pat@example.com")).isEqualTo("Pat Smith <pat@example.com>");
+
+        _setValue(picker, Set.of("pat@example.com"));
+        typeCustomEmail(picker, " New.Person@Example.com ");
+        assertThat(picker.isInvalid()).isFalse();
+        assertThat(picker.getValue()).containsExactlyInAnyOrder("pat@example.com", "new.person@example.com");
+        assertThat(picker.getListDataView().getItems()).contains("new.person@example.com");
+
+        typeCustomEmail(picker, "not an email");
+        assertThat(picker.isInvalid()).isTrue();
+        assertThat(picker.getErrorMessage()).contains("not an email address");
+        assertThat(picker.getValue()).hasSize(2);
+
+        _setValue(_get(TextField.class, spec -> spec.withLabel("Name")), "Winter fair");
+        _click(_get(Button.class, spec -> spec.withText("Save")));
+
+        Event winter = events.findByNameIgnoreCase("Winter fair").orElseThrow();
+        assertThat(winter.getOrganizerEmails()).containsExactlyInAnyOrder("pat@example.com", "new.person@example.com");
+        assertThat(_getFormattedRow(grid(), 0)).anySatisfy(cell -> assertThat(cell).contains("Pat Smith").contains("new.person@example.com"));
+    }
+
+    @Test
+    void editingAnEventPreselectsItsOrganizersEvenIfTheyNeverLoggedIn() {
+        event("Spring fair", "ghost@example.com");
+        knownOrganizer("pat@example.com", "Pat Smith");
+        loginAsAdmin();
+        start();
+        navigate("events");
+
+        HorizontalLayout actions = (HorizontalLayout) _getCellComponent(grid(), 0, "actions");
+        _click((Button) actions.getComponentAt(1)); // the pencil
+        MultiSelectComboBox<String> picker = organizerPicker();
+
+        assertThat(picker.getValue()).containsExactly("ghost@example.com");
+        assertThat(picker.getListDataView().getItems()).containsExactlyInAnyOrder("pat@example.com", "ghost@example.com");
     }
 
     @Test
