@@ -5,7 +5,11 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2026-10-02
+## [1.0.0] - 2026-10-02
+
+First stable release: events with organizers, prizes, participants with multiple ticket
+ranges, QR-code wishlists and the draw page, on a dependency set with no known
+vulnerabilities (`snyk test` and `snyk code test` both report 0 issues).
 
 ### Security
 - **Spring Boot 4.0.8 and Vaadin 25.3.0** (from 3.5.16 and 24.8.17). Spring Boot 3.5's
@@ -169,7 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
-[0.5.0]: https://github.com/dogeared/open-raffle/compare/v0.4.0...v0.5.0
+[1.0.0]: https://github.com/dogeared/open-raffle/compare/v0.4.0...v1.0.0
 [0.4.0]: https://github.com/dogeared/open-raffle/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/dogeared/open-raffle/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/dogeared/open-raffle/compare/v0.3.0...v0.3.1
