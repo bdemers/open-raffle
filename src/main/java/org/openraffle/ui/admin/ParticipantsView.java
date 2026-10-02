@@ -79,9 +79,9 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
             Button name = new Button(p.getName(), e -> openEditor(p));
             name.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
             return name;
-        }).setHeader("Name").setKey("name").setAutoWidth(true).setSortable(true).setComparator(Participant::getName);
-        grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setKey("tickets").setAutoWidth(true)
-                .setComparator(Participant::getFirstTicket).setSortable(true);
+        }).setHeader("Name").setKey("name").setAutoWidth(true);
+        // Alphabetical, server-side (the grid only holds one page, so column sorting would mislead).
+        grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setKey("tickets").setAutoWidth(true);
         grid.addColumn(Participant::getTicketCount).setHeader("Count").setAutoWidth(true).setFlexGrow(0);
         // The wishlist summary opens a dialog with the full ranked list.
         grid.addComponentColumn(p -> {

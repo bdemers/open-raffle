@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the participants grid, draw page and wishlist page show all ranges, e.g. "1 – 10, 30 – 35".
 
 ### Changed
+- Participants are listed alphabetically (they were ordered by ticket number).
 - Existing participants' single range is converted on the first start-up after upgrading.
 
 ## [0.3.2] - 2026-10-02

@@ -160,6 +160,17 @@ class ParticipantServiceTest {
     }
 
     @Test
+    void participantsAreListedAlphabeticallyRegardlessOfTickets() {
+        participantService.save(participant("zoe", 1, 5));
+        participantService.save(participant("Bob", 50, 55));
+        participantService.save(participant("ann", 20, 25));
+        participantService.save(participant("Ann", 30, 35));
+
+        assertThat(participantService.findAll(event)).extracting(Participant::getName)
+                .containsExactly("ann", "Ann", "Bob", "zoe");
+    }
+
+    @Test
     void aSecondRangeMayNotOverlapAnyoneElse() {
         participantService.save(participant("Ann", 1, 10));
         Participant bob = participantService.save(participant("Bob", 11, 20));

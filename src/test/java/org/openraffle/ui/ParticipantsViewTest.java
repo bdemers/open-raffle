@@ -194,6 +194,28 @@ class ParticipantsViewTest extends KaribuTest {
     }
 
     @Test
+    void participantsAreAlphabeticalAndPaginated() {
+        Event fair = openEventAsOrganizer();
+        for (int i = 1; i <= 12; i++) {
+            // Names in reverse order of their tickets, to prove the sort is by name.
+            participant(fair, "Person " + (char) ('Z' - i), i * 10, i * 10 + 5);
+        }
+        navigate("events/" + fair.getId() + "/prizes");
+        navigate("events/" + fair.getId());
+
+        assertThat(_size(grid())).isEqualTo(10);
+        assertThat(((Button) _getCellComponent(grid(), 0, "name")).getText()).isEqualTo("Person N");
+        assertThat(((Button) _getCellComponent(grid(), 9, "name")).getText()).isEqualTo("Person W");
+        assertThat(_get(com.vaadin.flow.component.html.Span.class, spec -> spec.withText("1–10 of 12"))).isNotNull();
+
+        _click(_get(Button.class, spec -> spec.withPredicate(b -> "Next page".equals(b.getAriaLabel().orElse("")))));
+
+        assertThat(_size(grid())).isEqualTo(2);
+        assertThat(((Button) _getCellComponent(grid(), 0, "name")).getText()).isEqualTo("Person X");
+        assertThat(((Button) _getCellComponent(grid(), 1, "name")).getText()).isEqualTo("Person Y");
+    }
+
+    @Test
     void organizersNotListedOnTheEventAreSentBackToTheList() {
         Event fair = event("Spring fair", "other@example.com");
         loginAsOrganizer("pat@example.com");

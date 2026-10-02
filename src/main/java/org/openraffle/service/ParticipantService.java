@@ -32,10 +32,12 @@ public class ParticipantService {
         this.prizes = prizes;
     }
 
+    /** The event's participants alphabetically (case-insensitive), lowest ticket first among namesakes. */
     @Transactional(readOnly = true)
     public List<Participant> findAll(Event event) {
         return participants.findAllByEvent(event).stream()
-                .sorted(Comparator.comparingLong(Participant::getFirstTicket).thenComparing(Participant::getName))
+                .sorted(Comparator.comparing(Participant::getName, String.CASE_INSENSITIVE_ORDER)
+                        .thenComparingLong(Participant::getFirstTicket))
                 .toList();
     }
 
