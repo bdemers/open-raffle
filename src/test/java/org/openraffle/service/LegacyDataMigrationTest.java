@@ -40,6 +40,7 @@ class LegacyDataMigrationTest {
         p.setName("Old-timer");
         p.setTicketStart(1);
         p.setTicketEnd(5);
+        p.setPhone("555-0100");
         p.setToken("legacy");
         em.persist(p);
         Prize z = new Prize();
@@ -53,7 +54,7 @@ class LegacyDataMigrationTest {
 
         Event def = events.findByNameIgnoreCase(LegacyDataMigration.DEFAULT_EVENT_NAME).orElseThrow();
         assertThat(participants.findByToken("legacy")).get().extracting(Participant::getEvent).isEqualTo(def);
-        assertThat(prizes.findAllByEventOrderBySortOrderAscNameAsc(def)).extracting(Prize::getName).containsExactly("Old prize");
+        assertThat(prizes.findAllByEventAlphabetically(def)).extracting(Prize::getName).containsExactly("Old prize");
         assertThat(participants.countByEventIsNull()).isZero();
         assertThat(prizes.countByEventIsNull()).isZero();
     }

@@ -66,8 +66,13 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         toolbar.expand(heading);
         toolbar.setWidthFull();
 
-        grid.addColumn(Participant::getName).setHeader("Name").setAutoWidth(true).setSortable(true);
-        grid.addColumn(p -> p.getPhone() == null ? "—" : p.getPhone()).setHeader("Phone").setAutoWidth(true);
+        // The name opens the editor, like the pencil button: an extra cue. No phone column:
+        // this screen is turned towards participants when they scan their QR code.
+        grid.addComponentColumn(p -> {
+            Button name = new Button(p.getName(), e -> openEditor(p));
+            name.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+            return name;
+        }).setHeader("Name").setAutoWidth(true).setSortable(true).setComparator(Participant::getName);
         grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setAutoWidth(true)
                 .setComparator(Participant::getTicketStart).setSortable(true);
         grid.addColumn(Participant::getTicketCount).setHeader("Count").setAutoWidth(true).setFlexGrow(0);
@@ -114,17 +119,19 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         Dialog dialog = new Dialog(isNew ? "New participant" : "Edit participant");
 
         TextField name = new TextField("Name");
-        TextField phone = new TextField("Phone (optional)");
+        TextField phone = new TextField("Phone");
         phone.setPlaceholder("555-123-4567");
         phone.setMaxLength(32);
         IntegerField ticketStart = new IntegerField("First ticket #");
         IntegerField ticketEnd = new IntegerField("Last ticket #");
         ticketStart.setMin(0);
         ticketEnd.setMin(0);
+        // The last ticket defaults to the first one; select it on focus so typing replaces it.
+        ticketEnd.setAutoselect(true);
 
         BeanValidationBinder<Participant> binder = new BeanValidationBinder<>(Participant.class);
         binder.forField(name).asRequired("Name is required").bind(Participant::getName, Participant::setName);
-        binder.forField(phone).bind(Participant::getPhone, Participant::setPhone);
+        binder.forField(phone).asRequired("Phone is required").bind(Participant::getPhone, Participant::setPhone);
         binder.forField(ticketStart).asRequired("Required")
                 .bind(p -> (int) p.getTicketStart(), (p, v) -> p.setTicketStart(v));
         binder.forField(ticketEnd).asRequired("Required")
@@ -134,7 +141,14 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         if (!isNew) {
             binder.readBean(participant);
         }
-        // Convenience: when the first ticket is typed, default the last ticket to it.
+        // Convenience: when the first ticket is typed, default the last ticket to it. Done in
+        // the browser at "change" time (before focus moves on) so that autoselect on the
+        // last-ticket field highlights the prefilled value; the server listener is the
+        // fallback when the client-side copy did not happen.
+        ticketStart.getElement().executeJs(
+                "this.addEventListener('change', () => { const end = $0;"
+                        + " if (!end.value && this.value) { end.value = this.value; end.dispatchEvent(new Event('change')); } })",
+                ticketEnd.getElement());
         ticketStart.addValueChangeListener(e -> {
             if (e.isFromClient() && ticketEnd.isEmpty() && e.getValue() != null) {
                 ticketEnd.setValue(e.getValue());

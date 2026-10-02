@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -21,43 +20,21 @@ public class PrizeService {
         this.prizes = prizes;
     }
 
+    /** The event's prizes in alphabetical order; participants rank them themselves. */
     @Transactional(readOnly = true)
     public List<Prize> findAll(Event event) {
-        return prizes.findAllByEventOrderBySortOrderAscNameAsc(event);
+        return prizes.findAllByEventAlphabetically(event);
     }
 
-    /** New prizes go to the bottom of their event's list; existing ones keep their position. */
     public Prize save(Prize prize) {
         if (prize.getEvent() == null) {
             throw new IllegalArgumentException("Prize must belong to an event");
-        }
-        if (prize.getId() == null) {
-            prize.setSortOrder(prizes.findAllByEventOrderBySortOrderAscNameAsc(prize.getEvent()).stream()
-                    .mapToInt(Prize::getSortOrder).max().orElse(-1) + 1);
         }
         return prizes.save(prize);
     }
 
     public void delete(Prize prize) {
         prizes.delete(prize);
-    }
-
-    /**
-     * Moves a prize one step up ({@code delta = -1}) or down ({@code delta = +1}) in the
-     * organizer's list and renumbers everything so positions stay contiguous.
-     */
-    public void move(Prize prize, int delta) {
-        List<Prize> ordered = prizes.findAllByEventOrderBySortOrderAscNameAsc(prize.getEvent());
-        int from = ordered.indexOf(prize);
-        int to = from + delta;
-        if (from < 0 || to < 0 || to >= ordered.size()) {
-            return;
-        }
-        Collections.swap(ordered, from, to);
-        for (int i = 0; i < ordered.size(); i++) {
-            ordered.get(i).setSortOrder(i);
-        }
-        prizes.saveAll(ordered);
     }
 
     /** Records that {@code winner} took the prize. Fails if someone else already has it. */

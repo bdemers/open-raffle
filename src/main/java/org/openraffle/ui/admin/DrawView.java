@@ -123,12 +123,6 @@ public class DrawView extends VerticalLayout implements BeforeEnterObserver {
                 result.add(new Paragraph(gone));
             }
         }
-        if (p.getNotes() != null) {
-            Paragraph notes = new Paragraph("Notes: " + p.getNotes());
-            notes.getStyle().set("font-style", "italic");
-            result.add(notes);
-        }
-
         result.add(otherPrizes(p, listExhausted));
     }
 

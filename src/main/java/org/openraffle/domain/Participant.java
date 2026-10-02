@@ -43,7 +43,11 @@ public class Participant {
     @Column(nullable = false)
     private String name;
 
-    /** Optional; lets the organizer reach a winner who has stepped away. */
+    /**
+     * Lets the organizer reach a winner who has stepped away. Required when organizers
+     * create or edit a participant (enforced by {@code ParticipantService.save}, not here:
+     * rows from before 0.2.2 have none, and their wishlist updates must still succeed).
+     */
     @Column(length = 32)
     private String phone;
 
@@ -61,6 +65,7 @@ public class Participant {
 
     private Instant wishlistUpdatedAt;
 
+    /** No longer collected (the wishlist page dropped its notes field in 0.2.2); kept for the schema. */
     @Column(length = 2000)
     private String notes;
 

@@ -21,7 +21,6 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.RolesAllowed;
 import org.openraffle.domain.Event;
 import org.openraffle.domain.Prize;
@@ -30,7 +29,6 @@ import org.openraffle.service.EventService;
 import org.openraffle.service.PrizeService;
 import org.openraffle.ui.MainLayout;
 
-import java.util.List;
 
 @Route(value = "events/:eventId/prizes", layout = MainLayout.class)
 @PageTitle("Prizes | Open Raffle")
@@ -40,7 +38,6 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
     private final PrizeService prizeService;
     private final EventService eventService;
     private final Grid<Prize> grid = new Grid<>(Prize.class, false);
-    private List<Prize> prizes = List.of();
     private Event event;
 
     public PrizesView(PrizeService prizeService, EventService eventService) {
@@ -55,19 +52,7 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
         toolbar.expand(toolbar.getComponentAt(0));
         toolbar.setWidthFull();
 
-        // Position is shown and changed the same way participants rank their picks:
-        // a rank number plus up/down arrows, rather than an editable number.
-        grid.addColumn(prize -> prizes.indexOf(prize) + 1).setHeader("#").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(prize -> {
-            int index = prizes.indexOf(prize);
-            Button up = iconButton(VaadinIcon.ARROW_UP, "Move up", () -> move(prize, -1));
-            up.setEnabled(index > 0);
-            Button down = iconButton(VaadinIcon.ARROW_DOWN, "Move down", () -> move(prize, 1));
-            down.setEnabled(index < prizes.size() - 1);
-            HorizontalLayout arrows = new HorizontalLayout(up, down);
-            arrows.setSpacing(false);
-            return arrows;
-        }).setHeader("").setAutoWidth(true).setFlexGrow(0);
+        // Alphabetical; participants rank prizes themselves on their wishlist page.
         grid.addColumn(Prize::getName).setHeader("Name").setAutoWidth(true);
         grid.addColumn(Prize::getDescription).setHeader("Description").setFlexGrow(1);
         grid.addComponentColumn(prize -> {
@@ -106,22 +91,7 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void refresh() {
-        prizes = prizeService.findAll(event);
-        grid.setItems(prizes);
-    }
-
-    private void move(Prize prize, int delta) {
-        prizeService.move(prize, delta);
-        refresh();
-    }
-
-    private static Button iconButton(VaadinIcon icon, String tooltip, Runnable action) {
-        Button button = new Button(icon.create(), e -> action.run());
-        button.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-        button.setTooltipText(tooltip);
-        button.setAriaLabel(tooltip);
-        button.addClassNames(LumoUtility.Padding.NONE);
-        return button;
+        grid.setItems(prizeService.findAll(event));
     }
 
     private void openEditor(Prize prize) {

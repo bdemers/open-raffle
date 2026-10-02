@@ -33,70 +33,18 @@ class PrizeServiceTest {
     }
 
     @Test
-    void prizesAreOrderedPerEvent() {
+    void prizesAreListedAlphabeticallyPerEvent() {
         Event other = event("Other fair");
-        Prize a = prizeService.save(prize("A"));
-        Prize b = prizeService.save(prize("B"));
+        prizeService.save(prize("mug"));
+        prizeService.save(prize("Bike"));
+        prizeService.save(prize("book"));
         Prize x = new Prize();
         x.setEvent(other);
-        x.setName("X");
-        x = prizeService.save(x);
+        x.setName("Apple");
+        prizeService.save(x);
 
-        assertThat(x.getSortOrder()).isEqualTo(0);
-        assertThat(prizeService.findAll(event)).containsExactly(a, b);
-        assertThat(prizeService.findAll(other)).containsExactly(x);
-    }
-
-    @Test
-    void newPrizesAppendToTheBottom() {
-        Prize first = prizeService.save(prize("Bike"));
-        Prize second = prizeService.save(prize("Book"));
-
-        assertThat(first.getSortOrder()).isEqualTo(0);
-        assertThat(second.getSortOrder()).isEqualTo(1);
-        assertThat(prizeService.findAll(event)).extracting(Prize::getName).containsExactly("Bike", "Book");
-    }
-
-    @Test
-    void savingAnExistingPrizeKeepsItsPosition() {
-        Prize bike = prizeService.save(prize("Bike"));
-        prizeService.save(prize("Book"));
-
-        bike.setName("Mountain bike");
-        prizeService.save(bike);
-
-        assertThat(prizeService.findAll(event)).extracting(Prize::getName).containsExactly("Mountain bike", "Book");
-    }
-
-    @Test
-    void moveSwapsNeighboursAndRenumbersContiguously() {
-        Prize a = prizeService.save(prize("A"));
-        Prize b = prizeService.save(prize("B"));
-        Prize c = prizeService.save(prize("C"));
-        // Simulate gaps left by deletions: positions 0, 5, 9.
-        b.setSortOrder(5);
-        c.setSortOrder(9);
-        em.flush();
-
-        prizeService.move(c, -1);
-
-        List<Prize> ordered = prizeService.findAll(event);
-        assertThat(ordered).extracting(Prize::getName).containsExactly("A", "C", "B");
-        assertThat(ordered).extracting(Prize::getSortOrder).containsExactly(0, 1, 2);
-
-        prizeService.move(a, 1);
-        assertThat(prizeService.findAll(event)).extracting(Prize::getName).containsExactly("C", "A", "B");
-    }
-
-    @Test
-    void moveAtTheEdgesIsANoOp() {
-        Prize a = prizeService.save(prize("A"));
-        Prize b = prizeService.save(prize("B"));
-
-        prizeService.move(a, -1);
-        prizeService.move(b, 1);
-
-        assertThat(prizeService.findAll(event)).extracting(Prize::getName).containsExactly("A", "B");
+        assertThat(prizeService.findAll(event)).extracting(Prize::getName).containsExactly("Bike", "book", "mug");
+        assertThat(prizeService.findAll(other)).extracting(Prize::getName).containsExactly("Apple");
     }
 
     @Test
@@ -147,6 +95,7 @@ class PrizeServiceTest {
         p.setName(name);
         p.setTicketStart(start);
         p.setTicketEnd(end);
+        p.setPhone("555-0100");
         p.setToken("token-" + name);
         return em.persistAndFlush(p);
     }

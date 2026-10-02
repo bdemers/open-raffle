@@ -5,6 +5,23 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-10-02
+
+### Changed
+- **Participants.** Phone number is required when an organizer creates or edits a participant
+  (existing participants without one keep working). The phone is no longer shown in the
+  participants grid, since that screen is turned towards participants for QR scanning; it is
+  still on the draw page. A participant's name is clickable and opens the editor, like the
+  pencil button. The "last ticket" field highlights its prefilled value on focus so typing
+  replaces it.
+- **Prizes** are listed alphabetically; the ordering arrows and position column are gone.
+  Participants still rank their own picks on the wishlist page.
+- **Wishlist page.** The "Anything else?" notes field is gone. Changes are saved automatically
+  every ten seconds (the Save button remains) and the page shows when it was last saved.
+
+### Fixed
+- The footer on the draw page sat in the middle of the page.
+
 ## [0.2.1] - 2026-10-02
 
 ### Fixed
@@ -86,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
+[0.2.2]: https://github.com/dogeared/open-raffle/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/dogeared/open-raffle/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/dogeared/open-raffle/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/dogeared/open-raffle/compare/v0.1.1...v0.1.2

@@ -53,6 +53,9 @@ public class ParticipantService {
         if (participant.getEvent() == null) {
             throw new IllegalArgumentException("Participant must belong to an event");
         }
+        if (participant.getPhone() == null || participant.getPhone().isBlank()) {
+            throw new IllegalArgumentException("Phone is required");
+        }
         if (participant.getTicketStart() > participant.getTicketEnd()) {
             throw new IllegalArgumentException("Ticket start must be less than or equal to ticket end");
         }
@@ -78,12 +81,11 @@ public class ParticipantService {
         participants.delete(participant);
     }
 
-    public Participant updateWishlist(String token, List<Prize> orderedPrizes, String notes) {
+    public Participant updateWishlist(String token, List<Prize> orderedPrizes) {
         Participant participant = participants.findByToken(token)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown participant token"));
         participant.getWishlist().clear();
         participant.getWishlist().addAll(orderedPrizes);
-        participant.setNotes(notes == null || notes.isBlank() ? null : notes.trim());
         participant.setWishlistUpdatedAt(Instant.now());
         return participants.save(participant);
     }
