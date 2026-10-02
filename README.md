@@ -183,6 +183,20 @@ GitHub Actions. `mvn test` also writes a JaCoCo coverage report to
 `target/site/jacoco/index.html`; on every push to `main`, CI publishes the percentage to a
 gist that the README badge reads.
 
+## Security scanning
+
+A pre-push hook runs [Snyk](https://snyk.io)'s dependency scan (`snyk test`) and static
+analysis (`snyk code test`) and blocks the push if either finds anything. Git does not
+install hooks from a clone, so enable it once:
+
+```sh
+brew install snyk-cli && snyk auth      # once per machine
+git config core.hooksPath .githooks     # once per clone
+```
+
+`git push --no-verify` skips it for one push. The hook is a no-op when the `snyk` CLI is
+not installed, so it never blocks a machine that lacks it.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md).
