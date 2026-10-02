@@ -43,6 +43,7 @@ class DrawViewTest extends KaribuTest {
         ann.setWishlist(List.of(bike, book));
         ann = participants.save(ann);
         bob = participant(fair, "Bob", 11, 20);
+        bob.addRange(40, 45);
         bob.setWishlist(List.of(bike));
         bob = participants.save(bob);
         loginAsOrganizer("pat@example.com");
@@ -82,6 +83,18 @@ class DrawViewTest extends KaribuTest {
         assertThat(_find(Checkbox.class)).extracting(Checkbox::getLabel).containsExactly("Bike", "Book", "Mug");
         assertThat(isInside(_get(Checkbox.class, spec -> spec.withLabel("Mug")), others)).isTrue();
         assertThat(isInside(_get(Checkbox.class, spec -> spec.withLabel("Bike")), others)).isFalse();
+    }
+
+    @Test
+    void ticketsFromAnyOfTheWinnersRangesAreFound() {
+        openDraw();
+
+        lookUp(42);
+
+        assertThat(_get(H3.class).getText()).contains("Bob");
+        assertThat(_get(com.vaadin.flow.component.html.Paragraph.class,
+                spec -> spec.withPredicate(p -> p.getText().startsWith("Holds tickets"))).getText())
+                .isEqualTo("Holds tickets 11 – 20, 40 – 45");
     }
 
     @Test

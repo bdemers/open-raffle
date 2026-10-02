@@ -3,6 +3,7 @@ package org.openraffle.service;
 import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
+import org.openraffle.domain.TicketRange;
 import org.openraffle.repository.ParticipantRepository;
 import org.openraffle.repository.PrizeRepository;
 import org.springframework.stereotype.Service;
@@ -11,8 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @Transactional
@@ -30,7 +34,9 @@ public class ParticipantService {
 
     @Transactional(readOnly = true)
     public List<Participant> findAll(Event event) {
-        return participants.findAllByEventOrderByTicketStartAsc(event);
+        return participants.findAllByEvent(event).stream()
+                .sorted(Comparator.comparingLong(Participant::getFirstTicket).thenComparing(Participant::getName))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -40,14 +46,14 @@ public class ParticipantService {
 
     @Transactional(readOnly = true)
     public Optional<Participant> findByTicket(Event event, long ticket) {
-        return participants.findFirstByEventAndTicketStartLessThanEqualAndTicketEndGreaterThanEqual(event, ticket, ticket);
+        return participants.findHolding(event, ticket).stream().findFirst();
     }
 
     /**
-     * Saves a participant after validating the ticket range does not overlap any other
-     * participant of the same event.
+     * Saves a participant after validating their ticket ranges: at least one, each in order,
+     * none overlapping each other, and none overlapping another participant of the event.
      *
-     * @throws TicketRangeConflictException if the range overlaps another participant's tickets
+     * @throws TicketRangeConflictException if a range overlaps another participant's tickets
      */
     public Participant save(Participant participant) {
         if (participant.getEvent() == null) {
@@ -59,17 +65,36 @@ public class ParticipantService {
         if (!Participant.isPlausiblePhone(participant.getPhone())) {
             throw new IllegalArgumentException("Phone: " + Participant.PHONE_RULE);
         }
-        if (participant.getTicketStart() > participant.getTicketEnd()) {
-            throw new IllegalArgumentException("Ticket start must be less than or equal to ticket end");
+        List<TicketRange> ranges = participant.getRanges();
+        if (ranges.isEmpty()) {
+            throw new IllegalArgumentException("At least one ticket range is required");
         }
-        List<Participant> overlaps = participants.findOverlapping(
-                participant.getEvent(), participant.getTicketStart(), participant.getTicketEnd(), participant.getId());
-        if (!overlaps.isEmpty()) {
-            throw new TicketRangeConflictException(overlaps);
+        for (TicketRange range : ranges) {
+            if (!range.isValid()) {
+                throw new IllegalArgumentException("Ticket range " + range.getStart() + " – " + range.getEnd()
+                        + ": the last ticket must not be before the first");
+            }
+        }
+        for (int i = 0; i < ranges.size(); i++) {
+            for (int j = i + 1; j < ranges.size(); j++) {
+                if (ranges.get(i).overlaps(ranges.get(j))) {
+                    throw new IllegalArgumentException("Ticket ranges " + ranges.get(i).getLabel() + " and "
+                            + ranges.get(j).getLabel() + " overlap each other");
+                }
+            }
+        }
+        Set<Participant> conflicts = new LinkedHashSet<>();
+        for (TicketRange range : ranges) {
+            conflicts.addAll(participants.findOverlapping(
+                    participant.getEvent(), range.getStart(), range.getEnd(), participant.getId()));
+        }
+        if (!conflicts.isEmpty()) {
+            throw new TicketRangeConflictException(List.copyOf(conflicts));
         }
         if (participant.getToken() == null) {
             participant.setToken(newToken());
         }
+        participant.mirrorFirstRangeIntoLegacyColumns();
         return participants.save(participant);
     }
 
