@@ -10,6 +10,8 @@ import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.ListItem;
+import com.vaadin.flow.component.html.OrderedList;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -78,9 +80,18 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setAutoWidth(true)
                 .setComparator(Participant::getTicketStart).setSortable(true);
         grid.addColumn(Participant::getTicketCount).setHeader("Count").setAutoWidth(true).setFlexGrow(0);
-        grid.addColumn(p -> p.getWishlist().isEmpty() ? "—"
-                        : p.getWishlist().stream().map(Prize::getName).collect(Collectors.joining(" › ")))
-                .setHeader("Wishlist (in order)").setFlexGrow(1);
+        // The wishlist summary opens a dialog with the full ranked list.
+        grid.addComponentColumn(p -> {
+            if (p.getWishlist().isEmpty()) {
+                return new Span("—");
+            }
+            String summary = p.getWishlist().stream().map(Prize::getName).collect(Collectors.joining(" › "));
+            Button open = new Button(summary, e -> showWishlist(p));
+            open.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+            open.setTooltipText("Show " + p.getName() + "'s picks");
+            open.getStyle().set("white-space", "normal").set("text-align", "left");
+            return open;
+        }).setHeader("Wishlist (in order)").setFlexGrow(1);
         grid.addComponentColumn(p -> {
             Button qr = new Button(VaadinIcon.QRCODE.create(), e -> showQr(p));
             qr.setTooltipText("Show QR code");
@@ -185,6 +196,30 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         dialog.getFooter().add(new Button("Cancel", e -> dialog.close()), save);
         dialog.open();
         name.focus();
+    }
+
+    private void showWishlist(Participant participant) {
+        Dialog dialog = new Dialog(participant.getName() + "'s picks");
+        OrderedList list = new OrderedList();
+        for (Prize prize : participant.getWishlist()) {
+            ListItem item = new ListItem(prize.getName());
+            if (prize.isClaimed()) {
+                Span claimed = new Span(prize.isClaimedBy(participant)
+                        ? " — they took this one" : " — claimed by " + prize.getClaimedBy().getName());
+                claimed.addClassNames(LumoUtility.FontSize.SMALL, LumoUtility.TextColor.TERTIARY);
+                item.add(claimed);
+            }
+            list.add(item);
+        }
+        Paragraph hint = new Paragraph("Most wanted first, as ranked by " + participant.getName() + ".");
+        hint.addClassNames(LumoUtility.TextColor.SECONDARY, LumoUtility.FontSize.SMALL);
+        if (participant.getWishlistUpdatedAt() != null) {
+            hint.setText(hint.getText() + " Last saved " + participant.getWishlistUpdatedAt() + ".");
+        }
+        dialog.add(list, hint);
+        dialog.setMaxWidth("480px");
+        dialog.getFooter().add(new Button("Close", e -> dialog.close()));
+        dialog.open();
     }
 
     private void showQr(Participant participant) {
