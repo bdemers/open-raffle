@@ -34,6 +34,9 @@ services:
     dockerContext: .
     plan: 0.5c-512mb
     healthCheckPath: /actuator/health
+    # Deploy a push to the linked branch (main) only once its GitHub checks (the Tests
+    # workflow) have passed. "commit" deploys immediately; "off" leaves it manual.
+    autoDeployTrigger: checksPass
     envVars:
       # Public URL of this service, embedded in participant QR codes,
       # e.g. https://open-raffle.onrender.com or your custom domain.
