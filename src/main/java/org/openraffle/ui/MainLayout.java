@@ -60,9 +60,12 @@ public class MainLayout extends AppLayout implements AfterNavigationObserver {
         addToNavbar(header);
         addToDrawer(nav);
 
-        // AppLayout has no footer slot: wrap the routed view and the footer in a column.
+        // AppLayout has no footer slot: wrap the routed view and the footer in a column that
+        // takes the full content height, so a view's setSizeFull() still gets a real height
+        // (a min-height here collapses full-size grids to a single row).
         content.addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN);
-        content.setMinHeight("100%");
+        content.setHeightFull();
+        content.getStyle().set("overflow", "auto");
         setContent(content);
         buildNav(null);
         this.footer = new AppFooter(version);
@@ -74,6 +77,9 @@ public class MainLayout extends AppLayout implements AfterNavigationObserver {
     public void showRouterLayoutContent(HasElement newContent) {
         content.removeAll();
         if (newContent != null) {
+            // Fill the space above the footer; min-height 0 lets a full-size view shrink to
+            // fit rather than push the footer out of view.
+            newContent.getElement().getStyle().set("flex", "1 1 auto").set("min-height", "0");
             content.getElement().appendChild(newContent.getElement());
         }
         content.add(footer);
