@@ -70,10 +70,63 @@ class ParticipantsViewTest extends KaribuTest {
         _assertNoDialogs();
 
         assertThat(_size(grid())).isEqualTo(1);
-        assertThat(_getFormattedRow(grid(), 0)).contains("100 – 104").doesNotContain("+44 20 7946 0958");
+        assertThat(_getFormattedRow(grid(), 0)).contains("100 – 104", "5").doesNotContain("+44 20 7946 0958");
         Participant ann = participants.findAll().get(0);
         assertThat(ann.getPhone()).isEqualTo("+44 20 7946 0958");
         assertThat(ann.getToken()).isNotBlank();
+    }
+
+    @Test
+    void returningBuyersGetAnotherRangeFromTheEditor() {
+        Event fair = openEventAsOrganizer();
+        participant(fair, "Ann", 1, 10);
+        participant(fair, "Bob", 11, 20);
+        navigate("events/" + fair.getId() + "/prizes");
+        navigate("events/" + fair.getId());
+
+        _click((Button) _getCellComponent(grid(), 0, "name"));
+        assertThat(_find(IntegerField.class, spec -> spec.withLabel("First ticket #"))).hasSize(1);
+        _click(_get(Button.class, spec -> spec.withText("Add another range")));
+        List<IntegerField> firsts = _find(IntegerField.class, spec -> spec.withLabel("First ticket #"));
+        List<IntegerField> lasts = _find(IntegerField.class, spec -> spec.withLabel("Last ticket #"));
+        assertThat(firsts).hasSize(2);
+        _setValue(firsts.get(1), 15);
+        _setValue(lasts.get(1), 18);
+        _click(_get(Button.class, spec -> spec.withText("Save")));
+
+        // 15 – 18 belongs to Bob: refused, dialog stays open.
+        assertThat(_find(Dialog.class)).isNotEmpty();
+        assertThat(participants.findByToken("token-ann").orElseThrow().getRanges()).hasSize(1);
+
+        _setValue(firsts.get(1), 30);
+        _setValue(lasts.get(1), 35);
+        _click(_get(Button.class, spec -> spec.withText("Save")));
+
+        _assertNoDialogs();
+        assertThat(_getFormattedRow(grid(), 0)).contains("1 – 10, 30 – 35", "16");
+        assertThat(participants.findByToken("token-ann").orElseThrow().holdsTicket(33)).isTrue();
+    }
+
+    @Test
+    void theOnlyRangeCannotBeRemovedButExtraOnesCan() {
+        Event fair = openEventAsOrganizer();
+        Participant ann = participant(fair, "Ann", 1, 10);
+        ann.addRange(30, 35);
+        participants.save(ann);
+        navigate("events/" + fair.getId() + "/prizes");
+        navigate("events/" + fair.getId());
+
+        _click((Button) _getCellComponent(grid(), 0, "name"));
+        List<Button> removes = _find(Button.class, spec -> spec.withPredicate(b -> "Remove range".equals(b.getAriaLabel().orElse(""))));
+        assertThat(removes).hasSize(2).allMatch(Button::isEnabled);
+
+        _click(removes.get(1));
+
+        List<Button> left = _find(Button.class, spec -> spec.withPredicate(b -> "Remove range".equals(b.getAriaLabel().orElse(""))));
+        assertThat(left).hasSize(1);
+        assertThat(left.get(0).isEnabled()).isFalse();
+        _click(_get(Button.class, spec -> spec.withText("Save")));
+        assertThat(participants.findByToken("token-ann").orElseThrow().getTicketRangeLabel()).isEqualTo("1 – 10");
     }
 
     @Test
@@ -138,6 +191,28 @@ class ParticipantsViewTest extends KaribuTest {
         assertThat(participants.count()).isZero();
         assertThat(_size(grid())).isZero();
         expectNotifications("Participant deleted");
+    }
+
+    @Test
+    void participantsAreAlphabeticalAndPaginated() {
+        Event fair = openEventAsOrganizer();
+        for (int i = 1; i <= 12; i++) {
+            // Names in reverse order of their tickets, to prove the sort is by name.
+            participant(fair, "Person " + (char) ('Z' - i), i * 10, i * 10 + 5);
+        }
+        navigate("events/" + fair.getId() + "/prizes");
+        navigate("events/" + fair.getId());
+
+        assertThat(_size(grid())).isEqualTo(10);
+        assertThat(((Button) _getCellComponent(grid(), 0, "name")).getText()).isEqualTo("Person N");
+        assertThat(((Button) _getCellComponent(grid(), 9, "name")).getText()).isEqualTo("Person W");
+        assertThat(_get(com.vaadin.flow.component.html.Span.class, spec -> spec.withText("1–10 of 12"))).isNotNull();
+
+        _click(_get(Button.class, spec -> spec.withPredicate(b -> "Next page".equals(b.getAriaLabel().orElse("")))));
+
+        assertThat(_size(grid())).isEqualTo(2);
+        assertThat(((Button) _getCellComponent(grid(), 0, "name")).getText()).isEqualTo("Person X");
+        assertThat(((Button) _getCellComponent(grid(), 1, "name")).getText()).isEqualTo("Person Y");
     }
 
     @Test

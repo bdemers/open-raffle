@@ -2,6 +2,7 @@ package org.openraffle.domain;
 
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -17,12 +18,14 @@ import jakarta.validation.constraints.NotBlank;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 /**
- * A raffle participant holding a contiguous range of physical ticket numbers.
- * The {@code token} is the secret embedded in the participant's QR code.
+ * A raffle participant holding one or more ranges of physical ticket numbers (people come
+ * back to buy more). The {@code token} is the secret embedded in the participant's QR code.
  */
 @Entity
 @Table(name = "participant")
@@ -52,11 +55,22 @@ public class Participant {
     @Column(length = 32)
     private String phone;
 
-    @Column(nullable = false)
-    private long ticketStart;
+    /** Every run of tickets this participant bought, in the order they were entered. */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "participant_ticket_range", joinColumns = @JoinColumn(name = "participant_id"))
+    @OrderColumn(name = "position")
+    private List<TicketRange> ranges = new ArrayList<>();
 
-    @Column(nullable = false)
-    private long ticketEnd;
+    /**
+     * Unused since 0.4.0, when {@link #ranges} replaced the single range. Kept because the
+     * columns are NOT NULL in databases created before then; the service mirrors the first
+     * range into them and {@code LegacyDataMigration} turns old values into a range.
+     */
+    @Column(name = "ticket_start")
+    private Long legacyTicketStart;
+
+    @Column(name = "ticket_end")
+    private Long legacyTicketEnd;
 
     @Column(nullable = false, unique = true, length = 64)
     private String token;
@@ -125,20 +139,49 @@ public class Participant {
         this.phone = phone == null || phone.isBlank() ? null : phone.trim();
     }
 
-    public long getTicketStart() {
-        return ticketStart;
+    public List<TicketRange> getRanges() {
+        return ranges;
     }
 
-    public void setTicketStart(long ticketStart) {
-        this.ticketStart = ticketStart;
+    public void setRanges(List<TicketRange> ranges) {
+        this.ranges = ranges;
     }
 
-    public long getTicketEnd() {
-        return ticketEnd;
+    public void addRange(long start, long end) {
+        ranges.add(new TicketRange(start, end));
     }
 
-    public void setTicketEnd(long ticketEnd) {
-        this.ticketEnd = ticketEnd;
+    /** Ranges sorted by first ticket, for display. */
+    public List<TicketRange> getRangesInOrder() {
+        return ranges.stream().sorted(Comparator.comparingLong(TicketRange::getStart)).toList();
+    }
+
+    /** First ticket of the lowest range; what the participant list is sorted by. */
+    public long getFirstTicket() {
+        return ranges.stream().mapToLong(TicketRange::getStart).min().orElse(Long.MAX_VALUE);
+    }
+
+    Long getLegacyTicketStart() {
+        return legacyTicketStart;
+    }
+
+    Long getLegacyTicketEnd() {
+        return legacyTicketEnd;
+    }
+
+    /** Keeps the pre-0.4.0 NOT NULL columns satisfied; see the field comment. */
+    public void mirrorFirstRangeIntoLegacyColumns() {
+        legacyTicketStart = ranges.isEmpty() ? null : getFirstTicket();
+        legacyTicketEnd = ranges.isEmpty() ? null : ranges.stream().mapToLong(TicketRange::getEnd).max().orElse(0);
+    }
+
+    /** For {@code LegacyDataMigration}: the old single range, if this row predates ranges. */
+    public boolean adoptLegacyRange() {
+        if (!ranges.isEmpty() || legacyTicketStart == null || legacyTicketEnd == null) {
+            return false;
+        }
+        ranges.add(new TicketRange(legacyTicketStart, legacyTicketEnd));
+        return true;
     }
 
     public String getToken() {
@@ -178,15 +221,16 @@ public class Participant {
     }
 
     public long getTicketCount() {
-        return ticketEnd - ticketStart + 1;
+        return ranges.stream().mapToLong(TicketRange::getCount).sum();
     }
 
     public boolean holdsTicket(long ticket) {
-        return ticket >= ticketStart && ticket <= ticketEnd;
+        return ranges.stream().anyMatch(r -> r.contains(ticket));
     }
 
+    /** "1 – 10" or, with several ranges, "1 – 10, 25 – 30". */
     public String getTicketRangeLabel() {
-        return ticketStart == ticketEnd ? String.valueOf(ticketStart) : ticketStart + " – " + ticketEnd;
+        return getRangesInOrder().stream().map(TicketRange::getLabel).collect(Collectors.joining(", "));
     }
 
     @Override

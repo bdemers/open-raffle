@@ -14,22 +14,28 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long> 
 
     Optional<Participant> findByToken(String token);
 
-    List<Participant> findAllByEventOrderByTicketStartAsc(Event event);
+    List<Participant> findAllByEvent(Event event);
 
-    Optional<Participant> findFirstByEventAndTicketStartLessThanEqualAndTicketEndGreaterThanEqual(
-            Event event, long ticket, long sameTicket);
-
-    /** Any participant of the event (other than {@code excludeId}) whose range overlaps [start, end]. */
+    /** The participant of the event holding the ticket in any of their ranges. */
     @Query("""
-            select p from Participant p
+            select distinct p from Participant p join p.ranges r
+            where p.event = :event and r.start <= :ticket and r.end >= :ticket
+            """)
+    List<Participant> findHolding(@Param("event") Event event, @Param("ticket") long ticket);
+
+    /** Participants of the event (other than {@code excludeId}) with a range overlapping [start, end]. */
+    @Query("""
+            select distinct p from Participant p join p.ranges r
             where p.event = :event
-              and p.ticketStart <= :end and p.ticketEnd >= :start
+              and r.start <= :end and r.end >= :start
               and (:excludeId is null or p.id <> :excludeId)
             """)
     List<Participant> findOverlapping(@Param("event") Event event,
                                       @Param("start") long start,
                                       @Param("end") long end,
                                       @Param("excludeId") Long excludeId);
+
+    List<Participant> findAllByRangesIsEmpty();
 
     long countByEventIsNull();
 

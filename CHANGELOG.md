@@ -5,6 +5,19 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-02
+
+### Added
+- **Multiple ticket ranges per participant.** People come back to buy more tickets: the
+  participant editor has an "Add another range" button and a remove button per range. The
+  overlap check covers every range of every participant in the event (and a participant's own
+  ranges may not overlap each other), the draw page finds a winner from any of their ranges,
+  and the participants grid, draw page and wishlist page show all ranges, e.g. "1 – 10, 30 – 35".
+
+### Changed
+- Participants are listed alphabetically (they were ordered by ticket number).
+- Existing participants' single range is converted on the first start-up after upgrading.
+
 ## [0.3.2] - 2026-10-02
 
 ### Added
@@ -129,6 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
+[0.4.0]: https://github.com/dogeared/open-raffle/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/dogeared/open-raffle/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/dogeared/open-raffle/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/dogeared/open-raffle/compare/v0.2.2...v0.3.0

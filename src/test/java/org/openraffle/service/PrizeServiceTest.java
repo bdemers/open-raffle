@@ -93,8 +93,7 @@ class PrizeServiceTest {
         Participant p = new Participant();
         p.setEvent(event);
         p.setName(name);
-        p.setTicketStart(start);
-        p.setTicketEnd(end);
+        p.addRange(start, end);
         p.setPhone("555-0100");
         p.setToken("token-" + name);
         return em.persistAndFlush(p);

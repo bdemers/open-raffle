@@ -33,6 +33,7 @@ import jakarta.annotation.security.RolesAllowed;
 import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
+import org.openraffle.domain.TicketRange;
 import org.openraffle.security.SecurityConfig;
 import org.openraffle.service.EventService;
 import org.openraffle.service.ParticipantService;
@@ -42,6 +43,8 @@ import org.openraffle.ui.MainLayout;
 import org.openraffle.ui.Paginator;
 
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Route(value = "events/:eventId", layout = MainLayout.class)
@@ -76,9 +79,9 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
             Button name = new Button(p.getName(), e -> openEditor(p));
             name.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
             return name;
-        }).setHeader("Name").setKey("name").setAutoWidth(true).setSortable(true).setComparator(Participant::getName);
-        grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setKey("tickets").setAutoWidth(true)
-                .setComparator(Participant::getTicketStart).setSortable(true);
+        }).setHeader("Name").setKey("name").setAutoWidth(true);
+        // Alphabetical, server-side (the grid only holds one page, so column sorting would mislead).
+        grid.addColumn(Participant::getTicketRangeLabel).setHeader("Tickets").setKey("tickets").setAutoWidth(true);
         grid.addColumn(Participant::getTicketCount).setHeader("Count").setAutoWidth(true).setFlexGrow(0);
         // The wishlist summary opens a dialog with the full ranked list.
         grid.addComponentColumn(p -> {
@@ -136,47 +139,42 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         phone.setPlaceholder("555-123-4567");
         phone.setHelperText("Outside the US, start with + and the country code, e.g. +44 20 7946 0958");
         phone.setMaxLength(32);
-        IntegerField ticketStart = new IntegerField("First ticket #");
-        IntegerField ticketEnd = new IntegerField("Last ticket #");
-        ticketStart.setMin(0);
-        ticketEnd.setMin(0);
-        // The last ticket defaults to the first one; select it on focus so typing replaces it.
-        ticketEnd.setAutoselect(true);
 
         BeanValidationBinder<Participant> binder = new BeanValidationBinder<>(Participant.class);
         binder.forField(name).asRequired("Name is required").bind(Participant::getName, Participant::setName);
         binder.forField(phone).asRequired("Phone is required")
                 .withValidator(Participant::isPlausiblePhone, Participant.PHONE_RULE)
                 .bind(Participant::getPhone, Participant::setPhone);
-        binder.forField(ticketStart).asRequired("Required")
-                .bind(p -> (int) p.getTicketStart(), (p, v) -> p.setTicketStart(v));
-        binder.forField(ticketEnd).asRequired("Required")
-                .withValidator(v -> ticketStart.getValue() == null || v >= ticketStart.getValue(),
-                        "Must be ≥ first ticket")
-                .bind(p -> (int) p.getTicketEnd(), (p, v) -> p.setTicketEnd(v));
         if (!isNew) {
             binder.readBean(participant);
         }
-        // Convenience: when the first ticket is typed, default the last ticket to it. Done in
-        // the browser at "change" time (before focus moves on) so that autoselect on the
-        // last-ticket field highlights the prefilled value; the server listener is the
-        // fallback when the client-side copy did not happen.
-        ticketStart.getElement().executeJs(
-                "this.addEventListener('change', () => { const end = $0;"
-                        + " if (!end.value && this.value) { end.value = this.value; end.dispatchEvent(new Event('change')); } })",
-                ticketEnd.getElement());
-        ticketStart.addValueChangeListener(e -> {
-            if (e.isFromClient() && ticketEnd.isEmpty() && e.getValue() != null) {
-                ticketEnd.setValue(e.getValue());
-            }
-        });
 
-        FormLayout form = new FormLayout(name, phone, ticketStart, ticketEnd);
-        dialog.add(form);
+        // One row per ticket range; people come back to buy more, so ranges can be added.
+        VerticalLayout rangeRows = new VerticalLayout();
+        rangeRows.setPadding(false);
+        rangeRows.setSpacing(false);
+        Span rangesLabel = new Span("Tickets");
+        rangesLabel.addClassNames(LumoUtility.FontSize.SMALL, LumoUtility.FontWeight.MEDIUM, LumoUtility.TextColor.SECONDARY);
+        Button addRange = new Button("Add another range", VaadinIcon.PLUS.create(), e -> addRangeRow(rangeRows, null).focus());
+        addRange.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+        if (participant.getRanges().isEmpty()) {
+            addRangeRow(rangeRows, null);
+        } else {
+            participant.getRangesInOrder().forEach(range -> addRangeRow(rangeRows, range));
+        }
+
+        FormLayout form = new FormLayout(name, phone);
+        dialog.add(form, rangesLabel, rangeRows, addRange);
+        dialog.setWidth("520px");
 
         Button save = new Button(isNew ? "Create & show QR" : "Save", e -> {
             try {
                 binder.writeBean(participant);
+                List<TicketRange> ranges = readRanges(rangeRows);
+                if (ranges == null) {
+                    return; // a row is incomplete; its fields are marked
+                }
+                participant.setRanges(new ArrayList<>(ranges));
                 Participant saved = participantService.save(participant);
                 dialog.close();
                 refresh();
@@ -189,13 +187,89 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
                 Notification n = Notification.show(ex.getMessage(), 6000, Notification.Position.MIDDLE);
                 n.addThemeVariants(NotificationVariant.LUMO_ERROR);
             } catch (IllegalArgumentException ex) {
-                Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
+                Notification.show(ex.getMessage(), 6000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         dialog.getFooter().add(new Button("Cancel", e -> dialog.close()), save);
         dialog.open();
         name.focus();
+    }
+
+    /** A "first – last" pair with a remove button; returns the first-ticket field for focusing. */
+    private static IntegerField addRangeRow(VerticalLayout rows, TicketRange existing) {
+        IntegerField first = new IntegerField("First ticket #");
+        IntegerField last = new IntegerField("Last ticket #");
+        first.setMin(0);
+        last.setMin(0);
+        // The last ticket defaults to the first one; select it on focus so typing replaces it.
+        last.setAutoselect(true);
+        if (existing != null) {
+            first.setValue((int) existing.getStart());
+            last.setValue((int) existing.getEnd());
+        }
+        // Prefill in the browser at "change" time (before focus moves on) so autoselect on
+        // the last-ticket field highlights the value; the server listener is the fallback.
+        first.getElement().executeJs(
+                "this.addEventListener('change', () => { const end = $0;"
+                        + " if (!end.value && this.value) { end.value = this.value; end.dispatchEvent(new Event('change')); } })",
+                last.getElement());
+        first.addValueChangeListener(e -> {
+            if (e.isFromClient() && last.isEmpty() && e.getValue() != null) {
+                last.setValue(e.getValue());
+            }
+        });
+
+        HorizontalLayout row = new HorizontalLayout(first, last);
+        row.setAlignItems(Alignment.END);
+        Button remove = new Button(VaadinIcon.CLOSE_SMALL.create(), e -> {
+            rows.remove(row);
+            updateRemoveButtons(rows);
+        });
+        remove.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
+        remove.setAriaLabel("Remove range");
+        remove.setTooltipText("Remove range");
+        row.add(remove);
+        rows.add(row);
+        updateRemoveButtons(rows);
+        return first;
+    }
+
+    /** The only remaining range cannot be removed. */
+    private static void updateRemoveButtons(VerticalLayout rows) {
+        long count = rows.getChildren().count();
+        rows.getChildren().forEach(row -> ((HorizontalLayout) row).getChildren()
+                .filter(Button.class::isInstance).map(Button.class::cast)
+                .forEach(b -> b.setEnabled(count > 1)));
+    }
+
+    /** The ranges typed into the rows, or null (with the offending fields marked) if a row is incomplete. */
+    private static List<TicketRange> readRanges(VerticalLayout rows) {
+        List<TicketRange> ranges = new ArrayList<>();
+        boolean complete = true;
+        for (var child : rows.getChildren().toList()) {
+            HorizontalLayout row = (HorizontalLayout) child;
+            IntegerField first = (IntegerField) row.getComponentAt(0);
+            IntegerField last = (IntegerField) row.getComponentAt(1);
+            boolean rowOk = true;
+            for (IntegerField field : List.of(first, last)) {
+                boolean missing = field.getValue() == null;
+                field.setInvalid(missing);
+                field.setErrorMessage(missing ? "Required" : null);
+                rowOk &= !missing;
+            }
+            if (rowOk && last.getValue() < first.getValue()) {
+                last.setInvalid(true);
+                last.setErrorMessage("Must be ≥ first ticket");
+                rowOk = false;
+            }
+            if (rowOk) {
+                ranges.add(new TicketRange(first.getValue(), last.getValue()));
+            }
+            complete &= rowOk;
+        }
+        return complete ? ranges : null;
     }
 
     private void showWishlist(Participant participant) {

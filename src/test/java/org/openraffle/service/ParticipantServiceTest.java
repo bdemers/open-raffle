@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
+import org.openraffle.domain.TicketRange;
 import org.openraffle.repository.ParticipantRepository;
 import org.openraffle.repository.PrizeRepository;
 import org.openraffle.service.ParticipantService.TicketRangeConflictException;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -137,9 +139,68 @@ class ParticipantServiceTest {
     void editingAParticipantDoesNotConflictWithItself() {
         Participant ann = participantService.save(participant("Ann", 1, 10));
 
-        ann.setTicketEnd(12);
+        ann.setRanges(new ArrayList<>(List.of(new TicketRange(1, 12))));
 
-        assertThat(participantService.save(ann).getTicketEnd()).isEqualTo(12);
+        assertThat(participantService.save(ann).getTicketRangeLabel()).isEqualTo("1 – 12");
+    }
+
+    @Test
+    void returningBuyersGetAnotherRange() {
+        Participant ann = participantService.save(participant("Ann", 1, 10));
+        participantService.save(participant("Bob", 11, 20));
+
+        ann.addRange(30, 35);
+        Participant saved = participantService.save(ann);
+
+        assertThat(saved.getTicketRangeLabel()).isEqualTo("1 – 10, 30 – 35");
+        assertThat(saved.getTicketCount()).isEqualTo(16);
+        assertThat(participantService.findByTicket(event, 33)).contains(saved);
+        assertThat(participantService.findByTicket(event, 25)).isEmpty();
+        assertThat(participantService.findAll(event)).extracting(Participant::getName).containsExactly("Ann", "Bob");
+    }
+
+    @Test
+    void participantsAreListedAlphabeticallyRegardlessOfTickets() {
+        participantService.save(participant("zoe", 1, 5));
+        participantService.save(participant("Bob", 50, 55));
+        participantService.save(participant("ann", 20, 25));
+        participantService.save(participant("Ann", 30, 35));
+
+        assertThat(participantService.findAll(event)).extracting(Participant::getName)
+                .containsExactly("ann", "Ann", "Bob", "zoe");
+    }
+
+    @Test
+    void aSecondRangeMayNotOverlapAnyoneElse() {
+        participantService.save(participant("Ann", 1, 10));
+        Participant bob = participantService.save(participant("Bob", 11, 20));
+
+        bob.addRange(8, 9);
+
+        assertThatThrownBy(() -> participantService.save(bob))
+                .isInstanceOf(TicketRangeConflictException.class)
+                .hasMessageContaining("Ann (1 – 10)");
+    }
+
+    @Test
+    void aParticipantsOwnRangesMayNotOverlapEachOther() {
+        Participant ann = participant("Ann", 1, 10);
+        ann.addRange(5, 12);
+
+        assertThatThrownBy(() -> participantService.save(ann))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("overlap each other");
+        assertThat(participants.count()).isZero();
+    }
+
+    @Test
+    void atLeastOneRangeIsRequired() {
+        Participant nobody = participant("Nobody", 1, 1);
+        nobody.setRanges(new ArrayList<>());
+
+        assertThatThrownBy(() -> participantService.save(nobody))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("At least one");
     }
 
     @Test
@@ -216,8 +277,7 @@ class ParticipantServiceTest {
         Participant p = new Participant();
         p.setEvent(event);
         p.setName(name);
-        p.setTicketStart(start);
-        p.setTicketEnd(end);
+        p.addRange(start, end);
         p.setPhone("555-0100");
         return p;
     }

@@ -202,8 +202,7 @@ public abstract class KaribuTest {
         p.setEvent(event);
         p.setName(name);
         p.setPhone("555-0100");
-        p.setTicketStart(from);
-        p.setTicketEnd(to);
+        p.addRange(from, to);
         p.setToken("token-" + name.toLowerCase().replace(' ', '-'));
         p.setWishlist(new ArrayList<>());
         return participants.save(p);

@@ -1,6 +1,7 @@
 package org.openraffle.service;
 
 import org.openraffle.domain.Event;
+import org.openraffle.domain.Participant;
 import org.openraffle.repository.EventRepository;
 import org.openraffle.repository.ParticipantRepository;
 import org.openraffle.repository.PrizeRepository;
@@ -9,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -35,6 +38,26 @@ public class LegacyDataMigration implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        adoptLegacyTicketRanges();
+        attachOrphansToDefaultEvent();
+    }
+
+    /** Before 0.4.0 a participant had exactly one range in two columns; turn it into a range. */
+    private void adoptLegacyTicketRanges() {
+        List<Participant> withoutRanges = participants.findAllByRangesIsEmpty();
+        int adopted = 0;
+        for (Participant p : withoutRanges) {
+            if (p.adoptLegacyRange()) {
+                participants.save(p);
+                adopted++;
+            }
+        }
+        if (adopted > 0) {
+            log.info("Converted the single ticket range of {} participant(s) that predate multiple ranges", adopted);
+        }
+    }
+
+    private void attachOrphansToDefaultEvent() {
         long orphanParticipants = participants.countByEventIsNull();
         long orphanPrizes = prizes.countByEventIsNull();
         if (orphanParticipants == 0 && orphanPrizes == 0) {

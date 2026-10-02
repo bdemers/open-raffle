@@ -18,8 +18,9 @@ for Docker.
 1. **Events** — an admin creates an event (a raffle) and lists the organizers who may run
    it, by email. Everything below lives inside an event.
 2. **Prizes** — organizers enter the prizes and order them with up/down arrows.
-3. **Participants** — each participant gets a name, an optional phone number, and the
-   contiguous range of ticket numbers they bought. Overlapping ranges are rejected.
+3. **Participants** — each participant gets a name, a phone number, and the ranges of ticket
+   numbers they bought — several, if they come back for more. Ranges that overlap another
+   participant's (or each other) are rejected.
 4. **QR code** — the app shows (and can download) a QR code per participant. It opens a
    login-free page, identified by an unguessable token, where they rank the prizes they
    want and leave notes.
