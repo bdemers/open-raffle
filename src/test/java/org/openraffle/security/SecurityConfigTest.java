@@ -1,5 +1,7 @@
 package org.openraffle.security;
 
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.PlainJWT;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -44,6 +46,24 @@ class SecurityConfigTest {
                 mapper.mapAuthorities(List.of(new OidcUserAuthority(token, userInfo)));
 
         assertThat(mapped).extracting(GrantedAuthority::getAuthority).contains("ROLE_ADMIN");
+    }
+
+    @Test
+    void realmRolesAreReadFromAnAccessTokenJwt() {
+        // Keycloak's default realm-roles mapper puts roles in the access token only.
+        String accessToken = new PlainJWT(new JWTClaimsSet.Builder()
+                .subject("organizer")
+                .claim("realm_access", Map.of("roles", List.of("ADMIN", "offline_access")))
+                .build()).serialize();
+
+        assertThat(SecurityConfig.realmRoles(SecurityConfig.jwtClaims(accessToken)))
+                .containsExactlyInAnyOrder("ADMIN", "offline_access");
+    }
+
+    @Test
+    void opaqueOrMalformedAccessTokensYieldNoRoles() {
+        assertThat(SecurityConfig.realmRoles(SecurityConfig.jwtClaims("not-a-jwt"))).isEmpty();
+        assertThat(SecurityConfig.realmRoles(SecurityConfig.jwtClaims(""))).isEmpty();
     }
 
     @Test

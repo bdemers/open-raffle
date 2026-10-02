@@ -1,5 +1,6 @@
 package org.openraffle.security;
 
+import com.nimbusds.jwt.JWTParser;
 import com.vaadin.flow.spring.security.VaadinWebSecurity;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.actuate.health.HealthEndpoint;
@@ -10,9 +11,15 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2UserAuthority;
 
+import java.text.ParseException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -37,13 +44,37 @@ public class SecurityConfig extends VaadinWebSecurity {
         // Redirect unauthenticated users straight to Keycloak; after logout, send them
         // through Keycloak's end-session endpoint and back to the app root.
         setOAuth2LoginPage(http, "/oauth2/authorization/keycloak", "{baseUrl}");
+        http.oauth2Login(login -> login.userInfoEndpoint(userInfo -> userInfo.oidcUserService(keycloakOidcUserService())));
+    }
+
+    /**
+     * Loads the OIDC user as usual, then adds {@code ROLE_*} authorities for the realm roles
+     * in the <em>access token</em>. Keycloak's default realm-roles mapper puts roles only
+     * there, so without this a stock Keycloak client would never grant admin access.
+     */
+    @Bean
+    OAuth2UserService<OidcUserRequest, OidcUser> keycloakOidcUserService() {
+        OidcUserService delegate = new OidcUserService();
+        return request -> {
+            OidcUser user = delegate.loadUser(request);
+            Set<GrantedAuthority> authorities = new HashSet<>(user.getAuthorities());
+            for (String role : realmRoles(jwtClaims(request.getAccessToken().getTokenValue()))) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+            }
+            String nameAttribute = request.getClientRegistration().getProviderDetails()
+                    .getUserInfoEndpoint().getUserNameAttributeName();
+            return nameAttribute == null
+                    ? new DefaultOidcUser(authorities, user.getIdToken(), user.getUserInfo())
+                    : new DefaultOidcUser(authorities, user.getIdToken(), user.getUserInfo(), nameAttribute);
+        };
     }
 
     /**
      * Keycloak puts realm roles under {@code realm_access.roles}. Map them to
      * {@code ROLE_*} authorities so Vaadin's {@code @RolesAllowed} works. The claim is
-     * looked for in the ID token and in the userinfo response, since which one carries
-     * it depends on how the client's realm-roles mapper is configured in Keycloak.
+     * looked for in the ID token and in the userinfo response here, and in the access
+     * token by {@link #keycloakOidcUserService()}: which one carries it depends on how
+     * the realm-roles mapper is configured in Keycloak.
      */
     @Bean
     GrantedAuthoritiesMapper keycloakAuthoritiesMapper() {
@@ -67,8 +98,21 @@ public class SecurityConfig extends VaadinWebSecurity {
         };
     }
 
+    /**
+     * Claims of a JWT without signature verification. The access token arrives straight
+     * from Keycloak's token endpoint over TLS in the same response as the (verified) ID
+     * token, so it is trusted the same way; an opaque or malformed token yields no claims.
+     */
+    static Map<String, Object> jwtClaims(String token) {
+        try {
+            return JWTParser.parse(token).getJWTClaimsSet().getClaims();
+        } catch (ParseException e) {
+            return Map.of();
+        }
+    }
+
     @SuppressWarnings("unchecked")
-    private static Collection<String> realmRoles(Map<String, Object> claims) {
+    static Collection<String> realmRoles(Map<String, Object> claims) {
         Object realmAccess = claims.get("realm_access");
         if (realmAccess instanceof Map<?, ?> map && map.get("roles") instanceof Collection<?> roles) {
             return (Collection<String>) roles;
