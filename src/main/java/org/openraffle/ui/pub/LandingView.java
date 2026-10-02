@@ -29,10 +29,14 @@ public class LandingView extends VerticalLayout {
         setSizeFull();
         setPadding(false);
         setSpacing(false);
+        // A centred reading column with side padding (the layout's default is to pin
+        // children to the left edge).
+        setAlignItems(Alignment.CENTER);
 
         VerticalLayout hero = new VerticalLayout();
+        hero.setWidthFull();
         hero.setMaxWidth("720px");
-        hero.addClassNames(LumoUtility.Margin.Horizontal.AUTO, LumoUtility.Padding.LARGE, LumoUtility.Gap.MEDIUM);
+        hero.addClassNames(LumoUtility.Padding.XLARGE, LumoUtility.Gap.MEDIUM);
 
         H1 title = new H1("🎟️ Open Raffle");
         Paragraph tagline = new Paragraph("Run a physical-ticket raffle without the paper chaos.");
@@ -47,24 +51,22 @@ public class LandingView extends VerticalLayout {
                         "Type the drawn ticket number: see the winner, their phone number and their ranked picks, and tick the prize they take. Prizes already gone are crossed out."));
         how.addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN, LumoUtility.Gap.MEDIUM);
 
+        // The call to action, with its small print underneath.
         Div actions = new Div();
-        actions.addClassNames(LumoUtility.Display.FLEX, LumoUtility.Gap.MEDIUM, LumoUtility.AlignItems.CENTER);
+        actions.addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN,
+                LumoUtility.AlignItems.START, LumoUtility.Gap.SMALL, LumoUtility.Margin.Top.SMALL);
         if (currentUser.isOrganizer()) {
             Button events = new Button("Your events", VaadinIcon.CALENDAR.create(),
                     e -> getUI().ifPresent(ui -> ui.navigate(EventsView.class)));
             events.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_LARGE);
-            Span who = new Span("Signed in as " + currentUser.displayName());
-            who.addClassNames(LumoUtility.TextColor.SECONDARY);
-            actions.add(events, who);
+            actions.add(events, smallPrint("Signed in as " + currentUser.displayName()));
         } else {
             Anchor login = new Anchor("/oauth2/authorization/keycloak", "");
             login.getElement().setAttribute("router-ignore", true);
             Button button = new Button("Organizer log in", VaadinIcon.SIGN_IN.create());
             button.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_LARGE);
             login.add(button);
-            Span hint = new Span("Participants don't log in — just scan your QR code.");
-            hint.addClassNames(LumoUtility.TextColor.SECONDARY);
-            actions.add(login, hint);
+            actions.add(login, smallPrint("Participants don't log in — just scan your QR code."));
         }
 
         Anchor source = new Anchor("https://github.com/dogeared/open-raffle", "Open source on GitHub");
@@ -73,6 +75,12 @@ public class LandingView extends VerticalLayout {
 
         hero.add(title, tagline, new H2("How it works"), how, actions, source);
         add(hero, new AppFooter(version));
+    }
+
+    private static Span smallPrint(String text) {
+        Span span = new Span(text);
+        span.addClassNames(LumoUtility.FontSize.SMALL, LumoUtility.TextColor.SECONDARY);
+        return span;
     }
 
     private static Div step(VaadinIcon icon, String heading, String text) {

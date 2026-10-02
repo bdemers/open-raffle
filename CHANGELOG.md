@@ -5,6 +5,15 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-02
+
+### Fixed
+- **Styling lost in 1.0.0.** Vaadin 25 stopped loading the Lumo utility classes with the
+  theme, which silently dropped most spacing, card backgrounds, flex layouts and the centred
+  footer across the app. They are loaded explicitly again.
+- The landing page is a centred column with proper side padding, and the "Participants
+  don't log in" note sits under the log-in button in small print.
+
 ## [1.0.0] - 2026-10-02
 
 First stable release: events with organizers, prizes, participants with multiple ticket
@@ -173,6 +182,7 @@ vulnerabilities (`snyk test` and `snyk code test` both report 0 issues).
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
+[1.0.1]: https://github.com/dogeared/open-raffle/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/dogeared/open-raffle/compare/v0.4.0...v1.0.0
 [0.4.0]: https://github.com/dogeared/open-raffle/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/dogeared/open-raffle/compare/v0.3.1...v0.3.2
