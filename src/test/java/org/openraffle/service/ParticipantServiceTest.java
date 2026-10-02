@@ -68,6 +68,26 @@ class ParticipantServiceTest {
     }
 
     @Test
+    void phoneNumbersMayBeInternational() {
+        for (String ok : List.of("555-123-4567", "(555) 123-4567", "+44 20 7946 0958", "+49 30 901820", "+81-3-1234-5678", "5551234567")) {
+            assertThat(Participant.isPlausiblePhone(ok)).as(ok).isTrue();
+        }
+        for (String bad : List.of("abc", "+", "123", "+1 555 123 4567 ext 12", "12345678901234567", "")) {
+            assertThat(Participant.isPlausiblePhone(bad)).as(bad).isFalse();
+        }
+
+        Participant intl = participant("Nigel", 1, 1);
+        intl.setPhone("+44 20 7946 0958");
+        assertThat(participantService.save(intl).getPhone()).isEqualTo("+44 20 7946 0958");
+
+        Participant garbage = participant("Garbage", 2, 2);
+        garbage.setPhone("call me maybe");
+        assertThatThrownBy(() -> participantService.save(garbage))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("country code");
+    }
+
+    @Test
     void wishlistUpdatesStillWorkForParticipantsWithoutAPhone() {
         // Participants created before phone numbers were required have none.
         Participant legacy = participant("Legacy", 1, 1);
