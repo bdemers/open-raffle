@@ -94,9 +94,12 @@ working example; in an existing realm you need:
   - Valid redirect URIs: `https://<app host>/login/oauth2/code/keycloak`
   - Valid post logout redirect URIs: `https://<app host>/*`
   - Web origins: `https://<app host>`
-- a realm role `ADMIN`, assigned to every organizer. Keycloak's default `roles` client
-  scope already puts realm roles in the access token, which is enough: the app reads
-  `realm_access.roles` from the access token, the ID token and the userinfo response.
+- a realm role `ADMIN` (Realm roles → Create role, not a client role), assigned to every
+  organizer: Users → the user → Role mapping → Assign role, then switch the dialog's
+  filter from **Filter by clients** (the default, which hides realm roles) to **Filter by
+  realm roles** and tick `ADMIN`. Keycloak's default `roles` client scope already puts
+  realm roles in the access token, which is enough: the app reads `realm_access.roles`
+  from the access token, the ID token and the userinfo response.
 
 **2. Create the Blueprint.** In the Render dashboard choose **New → Blueprint** and pick this
 repository. You are prompted for the values marked `sync: false`:
