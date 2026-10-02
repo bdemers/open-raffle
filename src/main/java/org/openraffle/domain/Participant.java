@@ -18,6 +18,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * A raffle participant holding a contiguous range of physical ticket numbers.
@@ -43,7 +44,11 @@ public class Participant {
     @Column(nullable = false)
     private String name;
 
-    /** Optional; lets the organizer reach a winner who has stepped away. */
+    /**
+     * Lets the organizer reach a winner who has stepped away. Required when organizers
+     * create or edit a participant (enforced by {@code ParticipantService.save}, not here:
+     * rows from before 0.2.2 have none, and their wishlist updates must still succeed).
+     */
     @Column(length = 32)
     private String phone;
 
@@ -61,6 +66,7 @@ public class Participant {
 
     private Instant wishlistUpdatedAt;
 
+    /** No longer collected (the wishlist page dropped its notes field in 0.2.2); kept for the schema. */
     @Column(length = 2000)
     private String notes;
 
@@ -90,6 +96,25 @@ public class Participant {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    /** Digits with the usual separators, optionally led by a country code: "+44 20 7946 0958". */
+    private static final Pattern PHONE_CHARACTERS = Pattern.compile("\\+?[0-9 ().-]+");
+
+    public static final String PHONE_RULE =
+            "Digits, spaces, dashes or parentheses; start with + and the country code outside the US";
+
+    /**
+     * Whether this looks like a dialable phone number anywhere in the world: only phone
+     * characters, 7 to 15 digits (the ITU maximum), optional leading +.
+     */
+    public static boolean isPlausiblePhone(String phone) {
+        if (phone == null) {
+            return false;
+        }
+        String trimmed = phone.trim();
+        long digits = trimmed.chars().filter(Character::isDigit).count();
+        return PHONE_CHARACTERS.matcher(trimmed).matches() && digits >= 7 && digits <= 15;
     }
 
     public String getPhone() {

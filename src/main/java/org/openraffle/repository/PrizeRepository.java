@@ -12,7 +12,8 @@ import java.util.List;
 
 public interface PrizeRepository extends JpaRepository<Prize, Long> {
 
-    List<Prize> findAllByEventOrderBySortOrderAscNameAsc(Event event);
+    @Query("select p from Prize p where p.event = :event order by lower(p.name) asc, p.id asc")
+    List<Prize> findAllByEventAlphabetically(@Param("event") Event event);
 
     List<Prize> findAllByClaimedBy(Participant participant);
 

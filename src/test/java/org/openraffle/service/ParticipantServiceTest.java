@@ -58,6 +58,53 @@ class ParticipantServiceTest {
     }
 
     @Test
+    void organizersMustEnterAPhoneNumber() {
+        Participant noPhone = participant("Quiet", 1, 1);
+        noPhone.setPhone(" ");
+
+        assertThatThrownBy(() -> participantService.save(noPhone))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Phone");
+    }
+
+    @Test
+    void phoneNumbersMayBeInternational() {
+        for (String ok : List.of("555-123-4567", "(555) 123-4567", "+44 20 7946 0958", "+49 30 901820", "+81-3-1234-5678", "5551234567")) {
+            assertThat(Participant.isPlausiblePhone(ok)).as(ok).isTrue();
+        }
+        for (String bad : List.of("abc", "+", "123", "+1 555 123 4567 ext 12", "12345678901234567", "")) {
+            assertThat(Participant.isPlausiblePhone(bad)).as(bad).isFalse();
+        }
+
+        Participant intl = participant("Nigel", 1, 1);
+        intl.setPhone("+44 20 7946 0958");
+        assertThat(participantService.save(intl).getPhone()).isEqualTo("+44 20 7946 0958");
+
+        Participant garbage = participant("Garbage", 2, 2);
+        garbage.setPhone("call me maybe");
+        assertThatThrownBy(() -> participantService.save(garbage))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("country code");
+    }
+
+    @Test
+    void wishlistUpdatesStillWorkForParticipantsWithoutAPhone() {
+        // Participants created before phone numbers were required have none.
+        Participant legacy = participant("Legacy", 1, 1);
+        legacy.setPhone(null);
+        legacy.setToken("legacy-token");
+        em.persistAndFlush(legacy);
+        Prize bike = prizeService.save(prize("Bike"));
+
+        participantService.updateWishlist("legacy-token", List.of(bike));
+        em.flush();
+        em.clear();
+
+        assertThat(participants.findByToken("legacy-token")).get()
+                .extracting(p -> p.getWishlist().size()).isEqualTo(1);
+    }
+
+    @Test
     void participantsMustBelongToAnEvent() {
         Participant orphan = participant("Nobody", 1, 1);
         orphan.setEvent(null);
@@ -112,27 +159,25 @@ class ParticipantServiceTest {
     }
 
     @Test
-    void updateWishlistKeepsOrderAndNormalisesNotes() {
+    void updateWishlistKeepsTheParticipantsOrder() {
         Participant ann = participantService.save(participant("Ann", 1, 10));
         Prize bike = prizeService.save(prize("Bike"));
         Prize book = prizeService.save(prize("Book"));
         Prize mug = prizeService.save(prize("Mug"));
 
-        participantService.updateWishlist(ann.getToken(), List.of(mug, bike, book), "  size L  ");
+        participantService.updateWishlist(ann.getToken(), List.of(mug, bike, book));
         em.flush();
         em.clear();
 
         Participant reloaded = participants.findByToken(ann.getToken()).orElseThrow();
         assertThat(reloaded.getWishlist()).extracting(Prize::getName).containsExactly("Mug", "Bike", "Book");
-        assertThat(reloaded.getNotes()).isEqualTo("size L");
         assertThat(reloaded.getWishlistUpdatedAt()).isNotNull();
 
-        participantService.updateWishlist(ann.getToken(), List.of(book), "   ");
+        participantService.updateWishlist(ann.getToken(), List.of(book));
         em.flush();
         em.clear();
         reloaded = participants.findByToken(ann.getToken()).orElseThrow();
         assertThat(reloaded.getWishlist()).extracting(Prize::getName).containsExactly("Book");
-        assertThat(reloaded.getNotes()).isNull();
     }
 
     @Test
@@ -140,7 +185,7 @@ class ParticipantServiceTest {
         Participant ann = participantService.save(participant("Ann", 1, 10));
         Prize bike = prizeService.save(prize("Bike"));
         Prize mug = prizeService.save(prize("Mug"));
-        participantService.updateWishlist(ann.getToken(), List.of(bike), null);
+        participantService.updateWishlist(ann.getToken(), List.of(bike));
 
         participantService.addToWishlist(ann, mug);
         participantService.addToWishlist(ann, mug);
@@ -173,6 +218,7 @@ class ParticipantServiceTest {
         p.setName(name);
         p.setTicketStart(start);
         p.setTicketEnd(end);
+        p.setPhone("555-0100");
         return p;
     }
 

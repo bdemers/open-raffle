@@ -1,5 +1,7 @@
 package org.openraffle.ui.participant;
 
+import com.vaadin.flow.component.AttachEvent;
+import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
@@ -13,7 +15,8 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -27,6 +30,9 @@ import org.openraffle.service.PrizeService;
 import org.openraffle.ui.AppFooter;
 import org.openraffle.ui.AppVersion;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +45,8 @@ import java.util.List;
 @AnonymousAllowed
 public class WishlistView extends VerticalLayout implements BeforeEnterObserver {
 
+    static final int AUTOSAVE_INTERVAL_MS = 10_000;
+
     private final ParticipantService participantService;
     private final PrizeService prizeService;
     private final AppVersion version;
@@ -49,7 +57,11 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
 
     private final Div availableList = new Div();
     private final Div picksList = new Div();
-    private final TextArea notes = new TextArea("Anything else? (optional)");
+    private final Span savedLabel = new Span();
+
+    /** Picks changed since the last save; flushed by the Save button or the next auto-save. */
+    private boolean dirty;
+    private Registration pollRegistration;
 
     public WishlistView(ParticipantService participantService, PrizeService prizeService, AppVersion version) {
         this.participantService = participantService;
@@ -79,8 +91,31 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
         allPrizes = prizeService.findAll(participant.getEvent());
         picks.clear();
         picks.addAll(participant.getWishlist());
-        notes.setValue(participant.getNotes() == null ? "" : participant.getNotes());
+        dirty = false;
         build();
+    }
+
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+        // Auto-save: the browser polls every few seconds and unsaved changes are written then.
+        UI ui = attachEvent.getUI();
+        ui.setPollInterval(AUTOSAVE_INTERVAL_MS);
+        pollRegistration = ui.addPollListener(e -> {
+            if (dirty) {
+                save(true);
+            }
+        });
+    }
+
+    @Override
+    protected void onDetach(DetachEvent detachEvent) {
+        if (pollRegistration != null) {
+            pollRegistration.remove();
+            pollRegistration = null;
+        }
+        detachEvent.getUI().setPollInterval(-1);
+        super.onDetach(detachEvent);
     }
 
     private void build() {
@@ -96,24 +131,17 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
         picksList.addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN, LumoUtility.Gap.XSMALL);
         availableList.addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN, LumoUtility.Gap.XSMALL);
 
-        notes.setWidthFull();
-        notes.setPlaceholder("e.g. size, color, or a prize not on the list");
-        notes.setMaxLength(2000);
-
-        Button save = new Button("Save my wishlist", VaadinIcon.CHECK.create(), e -> save());
+        Button save = new Button("Save my wishlist", VaadinIcon.CHECK.create(), e -> save(false));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_LARGE);
         save.setWidthFull();
+
+        savedLabel.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.TERTIARY);
+        showSavedAt();
 
         add(eventName, title, intro,
                 new H3("Your picks"), picksList,
                 new H3("Available prizes"), availableList,
-                notes, save);
-        if (participant.getWishlistUpdatedAt() != null) {
-            Span saved = new Span("Last saved " + participant.getWishlistUpdatedAt());
-            saved.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.TERTIARY);
-            add(saved);
-        }
-        add(new AppFooter(version));
+                save, savedLabel, new AppFooter(version));
         render();
     }
 
@@ -152,7 +180,7 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
         down.setEnabled(index < picks.size() - 1);
         Button remove = iconButton(VaadinIcon.CLOSE_SMALL, "Remove", () -> {
             picks.remove(index);
-            render();
+            changed();
         });
         remove.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
@@ -164,7 +192,7 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
     private HorizontalLayout availableRow(Prize prize) {
         Button add = new Button("Add", VaadinIcon.PLUS.create(), e -> {
             picks.add(prize);
-            render();
+            changed();
         });
         add.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_PRIMARY);
         return row(prizeLabel(prize), add);
@@ -202,12 +230,28 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
         Prize tmp = picks.get(a);
         picks.set(a, picks.get(b));
         picks.set(b, tmp);
+        changed();
+    }
+
+    private void changed() {
+        dirty = true;
+        savedLabel.setText("Unsaved changes — saved automatically in a moment");
         render();
     }
 
-    private void save() {
-        participant = participantService.updateWishlist(participant.getToken(), List.copyOf(picks), notes.getValue());
-        Notification n = Notification.show("Saved! Good luck 🍀", 4000, Notification.Position.BOTTOM_CENTER);
-        n.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+    private void save(boolean automatic) {
+        participant = participantService.updateWishlist(participant.getToken(), List.copyOf(picks));
+        dirty = false;
+        showSavedAt();
+        if (!automatic) {
+            Notification n = Notification.show("Saved! Good luck 🍀", 4000, Notification.Position.BOTTOM_CENTER);
+            n.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        }
+    }
+
+    private void showSavedAt() {
+        Instant at = participant.getWishlistUpdatedAt();
+        savedLabel.setText(at == null ? "Not saved yet"
+                : "Saved " + DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault()).format(at));
     }
 }

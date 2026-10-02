@@ -33,7 +33,7 @@ public class Prize {
     @Column(length = 2000)
     private String description;
 
-    /** Position in the organizer's list; maintained by {@code PrizeService}, never edited directly. */
+    /** Unused since 0.2.2 (prizes are listed alphabetically); kept because the column is NOT NULL. */
     @Column(nullable = false)
     private int sortOrder;
 
