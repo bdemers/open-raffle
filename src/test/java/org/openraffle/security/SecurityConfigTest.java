@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
@@ -14,12 +13,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 class SecurityConfigTest {
 
-    private final GrantedAuthoritiesMapper mapper =
-            new SecurityConfig(mock(ClientRegistrationRepository.class)).keycloakAuthoritiesMapper();
+    private final GrantedAuthoritiesMapper mapper = new SecurityConfig().keycloakAuthoritiesMapper();
 
     @Test
     void keycloakRealmRolesBecomeRoleAuthorities() {

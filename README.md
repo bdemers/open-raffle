@@ -57,8 +57,7 @@ All settings are environment variables with local-dev defaults (see
 | `DB_HOST` / `DB_PORT` / `DB_NAME` | `localhost` / `5432` / `raffle` | Database location, as managed Postgres providers hand it out |
 | `DB_USER` / `DB_PASSWORD` | `raffle` / `raffle` | Database credentials |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/open-raffle` | OIDC issuer URL of the realm |
-| `KEYCLOAK_CLIENT_ID` | `open-raffle-app` | Confidential client in that realm |
-| `KEYCLOAK_CLIENT_SECRET` | `open-raffle-dev-secret` | Its secret — change it outside dev |
+| `KEYCLOAK_CLIENT_ID` | `open-raffle-app` | Public client in that realm (authorization code + PKCE, no secret) |
 
 Behind a reverse proxy, the app trusts `X-Forwarded-Proto`, `X-Forwarded-Host` and
 `X-Forwarded-Port` (`server.forward-headers-strategy=framework`), so OIDC redirect URIs and
@@ -72,7 +71,6 @@ docker build -t open-raffle .
 docker run -p 8080:8080 \
   -e DB_URL=jdbc:postgresql://db:5432/raffle -e DB_USER=raffle -e DB_PASSWORD=... \
   -e KEYCLOAK_ISSUER=https://auth.example.com/realms/open-raffle \
-  -e KEYCLOAK_CLIENT_SECRET=... \
   -e RAFFLE_PUBLIC_URL=https://raffle.example.com \
   open-raffle
 ```
@@ -90,8 +88,9 @@ centrally managed Keycloak, the same way local development uses a shared instanc
 **1. Prepare the client in your Keycloak.** `keycloak/open-raffle-realm.json` is a complete
 working example; in an existing realm you need:
 
-- a confidential OpenID Connect client (`open-raffle-app` unless you change
-  `KEYCLOAK_CLIENT_ID`) with Standard flow enabled, PKCE method `S256`, and
+- a **public** OpenID Connect client (`open-raffle-app` unless you change
+  `KEYCLOAK_CLIENT_ID`) — client authentication off, no secret — with Standard flow
+  enabled, PKCE method `S256`, and
   - Valid redirect URIs: `https://<app host>/login/oauth2/code/keycloak`
   - Valid post logout redirect URIs: `https://<app host>/*`
   - Web origins: `https://<app host>`
@@ -107,7 +106,6 @@ repository. You are prompted for the values marked `sync: false`:
 | --- | --- |
 | `RAFFLE_PUBLIC_URL` | `https://open-raffle.onrender.com` (or your custom domain) |
 | `KEYCLOAK_ISSUER` | `https://auth.example.com/realms/open-raffle` |
-| `KEYCLOAK_CLIENT_SECRET` | the client's secret from Keycloak |
 
 The database variables are wired automatically. The app sits behind Render's TLS proxy and
 trusts its `X-Forwarded-*` headers, so OIDC redirects use the public `https://` URL.

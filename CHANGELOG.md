@@ -10,13 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Render deployment.** `render.yaml` Blueprint that provisions the app and its Postgres
   database and prompts for the connection details of an existing, centrally managed Keycloak
-  (`KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_SECRET`, `RAFFLE_PUBLIC_URL`). The README documents
+  (`KEYCLOAK_ISSUER`, `RAFFLE_PUBLIC_URL`). The README documents
   what the Keycloak client needs.
 - `GET /actuator/health` without authentication, for platform health checks.
 - `PORT` is honoured for the HTTP port, and the database can be configured as
   `DB_HOST`/`DB_PORT`/`DB_NAME` as well as a full `DB_URL`.
 
 ### Changed
+- **The Keycloak client is public.** Login uses the authorization code flow with PKCE and no
+  client secret; `KEYCLOAK_CLIENT_SECRET` is gone. The bundled realm export's client is now
+  `publicClient: true` (re-import it, or switch the existing client's *Client authentication*
+  off).
 - Realm roles are read from the userinfo response as well as the ID token, so a realm whose
   roles mapper does not add them to the ID token still grants organizer access.
 - The JVM sizes its heap from the container memory limit (`-XX:MaxRAMPercentage=75`).

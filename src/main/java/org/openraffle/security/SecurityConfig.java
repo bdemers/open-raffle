@@ -10,9 +10,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2UserAuthority;
 
@@ -32,12 +29,6 @@ public class SecurityConfig extends VaadinWebSecurity {
 
     public static final String ROLE_ADMIN = "ADMIN";
 
-    private final ClientRegistrationRepository clientRegistrations;
-
-    public SecurityConfig(ClientRegistrationRepository clientRegistrations) {
-        this.clientRegistrations = clientRegistrations;
-    }
-
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         // The hosting platform's health check must not be bounced to the login page.
@@ -46,12 +37,6 @@ public class SecurityConfig extends VaadinWebSecurity {
         // Redirect unauthenticated users straight to Keycloak; after logout, send them
         // through Keycloak's end-session endpoint and back to the app root.
         setOAuth2LoginPage(http, "/oauth2/authorization/keycloak", "{baseUrl}");
-        // The Keycloak client requires PKCE (S256), which Spring only adds by default
-        // for public clients.
-        DefaultOAuth2AuthorizationRequestResolver pkce =
-                new DefaultOAuth2AuthorizationRequestResolver(clientRegistrations, "/oauth2/authorization");
-        pkce.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
-        http.oauth2Login(login -> login.authorizationEndpoint(ep -> ep.authorizationRequestResolver(pkce)));
     }
 
     /**
