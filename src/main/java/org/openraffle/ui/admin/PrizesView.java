@@ -61,8 +61,8 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
         // number is for readability only and keeps counting across pages. Fixed width: an
         // auto-sized column measured while the grid was collapsed once truncated it to "1…".
         grid.addColumn(prize -> pages.getPage() * pages.getPageSize() + currentPage.indexOf(prize) + 1)
-                .setHeader("#").setWidth("4.5em").setFlexGrow(0);
-        grid.addColumn(Prize::getName).setHeader("Name").setAutoWidth(true);
+                .setHeader("#").setKey("number").setWidth("4.5em").setFlexGrow(0);
+        grid.addColumn(Prize::getName).setHeader("Name").setKey("name").setAutoWidth(true);
         grid.addColumn(Prize::getDescription).setHeader("Description").setFlexGrow(1);
         grid.addComponentColumn(prize -> {
             if (!prize.isClaimed()) {
@@ -71,14 +71,14 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
             Span claimed = new Span("Claimed by " + prize.getClaimedBy().getName());
             claimed.getElement().getThemeList().add("badge success");
             return claimed;
-        }).setHeader("Status").setAutoWidth(true).setFlexGrow(0);
+        }).setHeader("Status").setKey("status").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(prize -> {
             Button edit = new Button(VaadinIcon.EDIT.create(), e -> openEditor(prize));
             edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
             Button delete = new Button(VaadinIcon.TRASH.create(), e -> confirmDelete(prize));
             delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
             return new HorizontalLayout(edit, delete);
-        }).setHeader("").setAutoWidth(true).setFlexGrow(0);
+        }).setHeader("").setKey("actions").setAutoWidth(true).setFlexGrow(0);
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
         grid.setSizeFull();
 

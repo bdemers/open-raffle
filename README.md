@@ -138,11 +138,13 @@ change them to `free` to try it out.
 mvn test
 ```
 
-The suite covers the services, QR URL resolution and Keycloak role mapping, and runs on
-every push and pull request via GitHub Actions. Tests use an in-memory H2 database, so
-neither Docker nor Keycloak is needed to run them. `mvn test` also writes a JaCoCo coverage
-report to `target/site/jacoco/index.html`; CI turns it into the README badge on every push
-to `main`. The Vaadin views are not unit-tested, which is most of what the badge leaves out.
+The suite covers the services, QR URL resolution and Keycloak role mapping, and every Vaadin
+view: the view tests use [Karibu Testing](https://github.com/mvysny/karibu-testing) to
+instantiate the real views in the Spring context and click through them server-side, with no
+browser. Tests use an in-memory H2 database and a stub OIDC client registration, so neither
+Docker nor Keycloak is needed to run them; they run on every push and pull request via
+GitHub Actions. `mvn test` also writes a JaCoCo coverage report to
+`target/site/jacoco/index.html`, which CI turns into the README badge on every push to `main`.
 
 ## Changelog
 

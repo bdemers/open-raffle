@@ -46,7 +46,7 @@ import java.util.List;
 @AnonymousAllowed
 public class WishlistView extends VerticalLayout implements BeforeEnterObserver {
 
-    static final int AUTOSAVE_INTERVAL_MS = 10_000;
+    public static final int AUTOSAVE_INTERVAL_MS = 10_000;
 
     private final ParticipantService participantService;
     private final PrizeService prizeService;
