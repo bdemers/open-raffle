@@ -28,6 +28,7 @@ import org.openraffle.security.SecurityConfig;
 import org.openraffle.service.EventService;
 import org.openraffle.service.PrizeService;
 import org.openraffle.ui.MainLayout;
+import org.openraffle.ui.Paginator;
 
 
 @Route(value = "events/:eventId/prizes", layout = MainLayout.class)
@@ -38,6 +39,7 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
     private final PrizeService prizeService;
     private final EventService eventService;
     private final Grid<Prize> grid = new Grid<>(Prize.class, false);
+    private final Paginator<Prize> pages = new Paginator<>(grid::setItems);
     private Event event;
 
     public PrizesView(PrizeService prizeService, EventService eventService) {
@@ -73,7 +75,7 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
         grid.setSizeFull();
 
-        add(toolbar, grid);
+        add(toolbar, grid, pages);
     }
 
     @Override
@@ -91,7 +93,7 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void refresh() {
-        grid.setItems(prizeService.findAll(event));
+        pages.setItems(prizeService.findAll(event));
     }
 
     private void openEditor(Prize prize) {

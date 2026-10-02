@@ -28,6 +28,7 @@ import org.openraffle.domain.Prize;
 import org.openraffle.service.ParticipantService;
 import org.openraffle.service.PrizeService;
 import org.openraffle.ui.AppFooter;
+import org.openraffle.ui.Paginator;
 import org.openraffle.ui.AppVersion;
 
 import java.time.Instant;
@@ -56,6 +57,7 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
     private final List<Prize> picks = new ArrayList<>();
 
     private final Div availableList = new Div();
+    private final Paginator<Prize> availablePages = new Paginator<>(this::renderAvailablePage);
     private final Div picksList = new Div();
     private final Span savedLabel = new Span();
 
@@ -140,7 +142,7 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
 
         add(eventName, title, intro,
                 new H3("Your picks"), picksList,
-                new H3("Available prizes"), availableList,
+                new H3("Available prizes"), availableList, availablePages,
                 save, savedLabel, new AppFooter(version));
         render();
     }
@@ -156,14 +158,19 @@ public class WishlistView extends VerticalLayout implements BeforeEnterObserver 
             picksList.add(pickRow(i));
         }
 
-        availableList.removeAll();
         List<Prize> remaining = allPrizes.stream().filter(p -> !picks.contains(p)).toList();
-        if (remaining.isEmpty()) {
+        availablePages.setItems(remaining);
+        availablePages.setVisible(!remaining.isEmpty());
+    }
+
+    private void renderAvailablePage(List<Prize> pageOfPrizes) {
+        availableList.removeAll();
+        if (pageOfPrizes.isEmpty()) {
             Span empty = new Span(allPrizes.isEmpty() ? "No prizes have been announced yet." : "You've picked them all!");
             empty.addClassNames(LumoUtility.TextColor.TERTIARY);
             availableList.add(empty);
         }
-        for (Prize prize : remaining) {
+        for (Prize prize : pageOfPrizes) {
             availableList.add(availableRow(prize));
         }
     }
