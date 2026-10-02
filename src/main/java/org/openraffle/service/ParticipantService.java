@@ -56,6 +56,9 @@ public class ParticipantService {
         if (participant.getPhone() == null || participant.getPhone().isBlank()) {
             throw new IllegalArgumentException("Phone is required");
         }
+        if (!Participant.isPlausiblePhone(participant.getPhone())) {
+            throw new IllegalArgumentException("Phone: " + Participant.PHONE_RULE);
+        }
         if (participant.getTicketStart() > participant.getTicketEnd()) {
             throw new IllegalArgumentException("Ticket start must be less than or equal to ticket end");
         }

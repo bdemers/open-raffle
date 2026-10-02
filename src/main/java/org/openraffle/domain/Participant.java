@@ -18,6 +18,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * A raffle participant holding a contiguous range of physical ticket numbers.
@@ -95,6 +96,25 @@ public class Participant {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    /** Digits with the usual separators, optionally led by a country code: "+44 20 7946 0958". */
+    private static final Pattern PHONE_CHARACTERS = Pattern.compile("\\+?[0-9 ().-]+");
+
+    public static final String PHONE_RULE =
+            "Digits, spaces, dashes or parentheses; start with + and the country code outside the US";
+
+    /**
+     * Whether this looks like a dialable phone number anywhere in the world: only phone
+     * characters, 7 to 15 digits (the ITU maximum), optional leading +.
+     */
+    public static boolean isPlausiblePhone(String phone) {
+        if (phone == null) {
+            return false;
+        }
+        String trimmed = phone.trim();
+        long digits = trimmed.chars().filter(Character::isDigit).count();
+        return PHONE_CHARACTERS.matcher(trimmed).matches() && digits >= 7 && digits <= 15;
     }
 
     public String getPhone() {

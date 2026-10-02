@@ -121,6 +121,7 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         TextField name = new TextField("Name");
         TextField phone = new TextField("Phone");
         phone.setPlaceholder("555-123-4567");
+        phone.setHelperText("Outside the US, start with + and the country code, e.g. +44 20 7946 0958");
         phone.setMaxLength(32);
         IntegerField ticketStart = new IntegerField("First ticket #");
         IntegerField ticketEnd = new IntegerField("Last ticket #");
@@ -131,7 +132,9 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
 
         BeanValidationBinder<Participant> binder = new BeanValidationBinder<>(Participant.class);
         binder.forField(name).asRequired("Name is required").bind(Participant::getName, Participant::setName);
-        binder.forField(phone).asRequired("Phone is required").bind(Participant::getPhone, Participant::setPhone);
+        binder.forField(phone).asRequired("Phone is required")
+                .withValidator(Participant::isPlausiblePhone, Participant.PHONE_RULE)
+                .bind(Participant::getPhone, Participant::setPhone);
         binder.forField(ticketStart).asRequired("Required")
                 .bind(p -> (int) p.getTicketStart(), (p, v) -> p.setTicketStart(v));
         binder.forField(ticketEnd).asRequired("Required")
