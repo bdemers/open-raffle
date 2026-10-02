@@ -2,6 +2,7 @@ package org.openraffle.ui;
 
 import com.github.mvysny.kaributesting.v10.MockVaadin;
 import com.github.mvysny.kaributesting.v10.Routes;
+import com.github.mvysny.kaributesting.v10.spring.MockSpringSecurity;
 import com.github.mvysny.kaributesting.v10.spring.MockSpringServlet;
 import com.github.mvysny.kaributesting.v10.UtilsKt;
 import com.github.mvysny.fakeservlet.FakeRequest;
@@ -21,17 +22,20 @@ import org.openraffle.repository.ParticipantRepository;
 import org.openraffle.repository.PrizeRepository;
 import org.openraffle.security.SecurityConfig;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import com.vaadin.flow.server.VaadinRequest;
+import com.vaadin.flow.server.VaadinSession;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -54,7 +58,7 @@ import java.util.Set;
 @SpringBootTest(properties = {
         // The OAuth2 client auto-configuration fetches the issuer's discovery document at
         // start-up; a stub registration below stands in for it.
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientAutoConfiguration,org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration,org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientWebSecurityAutoConfiguration",
+        "spring.autoconfigure.exclude=org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration,org.springframework.boot.security.oauth2.client.autoconfigure.servlet.OAuth2ClientWebSecurityAutoConfiguration",
         "vaadin.launch-browser=false",
 })
 @AutoConfigureTestDatabase
@@ -123,12 +127,23 @@ public abstract class KaribuTest {
         if (started) {
             MockVaadin.tearDown();
         }
+        // The login methods run before there is a Vaadin session, so the Authentication sits
+        // in the thread-local SecurityContext. Vaadin's Spring integration reads the context
+        // from the Vaadin session once one exists, so after setup the same Authentication is
+        // stored there too (and on the mocked request), the way the real filter chain would.
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        MockSpringSecurity.mock();
         MockVaadin.setup(UI::new, new MockSpringServlet(routes, ctx, UI::new));
         started = true;
-        // Vaadin's @RolesAllowed checks ask the servlet request for the principal and roles;
-        // answer from Spring's SecurityContext, which the login methods fill in.
+        if (authentication != null) {
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+            VaadinSession.getCurrent().getSession()
+                    .setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+            SecurityContextHolder.setContext(context);
+        }
         FakeRequest request = mockRequest();
-        request.setUserPrincipalInt(SecurityContextHolder.getContext().getAuthentication());
+        request.setUserPrincipalInt(authentication);
         request.setUserInRole((principal, role) -> hasRole(role));
     }
 

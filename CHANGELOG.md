@@ -5,7 +5,19 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-10-02
+
+First stable release: events with organizers, prizes, participants with multiple ticket
+ranges, QR-code wishlists and the draw page, on a dependency set with no known
+vulnerabilities (`snyk test` and `snyk code test` both report 0 issues).
+
+### Security
+- **Spring Boot 4.0.8 and Vaadin 25.3.0** (from 3.5.16 and 24.8.17). Spring Boot 3.5's
+  open-source support has ended and the fixes for its transitive dependencies only exist in
+  the 4.x line; `snyk test` went from 90 open issues (7 critical) to 0. Tomcat, Jackson and
+  Logback are pinned above what Boot 4.0.8 manages for the same reason.
+- A git pre-push hook (`.githooks/pre-push`) runs `snyk test` and `snyk code test`; see the
+  README for enabling it.
 
 ### Added
 - **Organizer picker.** The event editor offers everyone who has logged in as an organizer
@@ -19,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - The coverage badge reads from a gist via shields.io instead of a `badges` branch, so CI no
   longer pushes to the repository after each merge.
+- Vaadin 25 applies access rules to parent layouts too, so the main layout is now limited to
+  the organizer and admin roles like the views inside it.
+- Test support moved to Spring Boot 4's per-technology modules (`spring-boot-data-jpa-test`,
+  `spring-boot-jdbc-test`) and Karibu Testing 2.7.
 
 ## [0.4.0] - 2026-10-02
 
@@ -157,6 +173,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
+[1.0.0]: https://github.com/dogeared/open-raffle/compare/v0.4.0...v1.0.0
 [0.4.0]: https://github.com/dogeared/open-raffle/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/dogeared/open-raffle/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/dogeared/open-raffle/compare/v0.3.0...v0.3.1

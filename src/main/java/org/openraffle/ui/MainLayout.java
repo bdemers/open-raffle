@@ -18,8 +18,10 @@ import com.vaadin.flow.router.AfterNavigationObserver;
 import com.vaadin.flow.router.RouteParameters;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 import com.vaadin.flow.theme.lumo.LumoUtility;
+import jakarta.annotation.security.RolesAllowed;
 import org.openraffle.domain.Event;
 import org.openraffle.security.CurrentUser;
+import org.openraffle.security.SecurityConfig;
 import org.openraffle.service.EventService;
 import org.openraffle.ui.admin.DrawView;
 import org.openraffle.ui.admin.ParticipantsView;
@@ -31,7 +33,10 @@ import java.util.List;
 /**
  * Shell for the logged-in views: header with the user and log-out, a side nav with the
  * event list and — while inside an event — that event's pages, and the global footer.
+ * Vaadin applies access rules to parent layouts as well, so this one is limited to the
+ * same roles as the views inside it.
  */
+@RolesAllowed({SecurityConfig.ROLE_ORGANIZER, SecurityConfig.ROLE_ADMIN})
 public class MainLayout extends AppLayout implements AfterNavigationObserver {
 
     private final EventService eventService;

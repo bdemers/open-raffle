@@ -1,14 +1,15 @@
 package org.openraffle.security;
 
 import com.nimbusds.jwt.JWTParser;
-import com.vaadin.flow.spring.security.VaadinWebSecurity;
-import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
-import org.springframework.boot.actuate.health.HealthEndpoint;
+import com.vaadin.flow.spring.security.VaadinSecurityConfigurer;
 import org.springframework.boot.actuate.info.InfoEndpoint;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
@@ -33,26 +34,28 @@ import java.util.Set;
  */
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig extends VaadinWebSecurity {
+public class SecurityConfig {
 
     /** Manages events and who organizes them; implies {@link #ROLE_ORGANIZER}. */
     public static final String ROLE_ADMIN = "ADMIN";
     /** Runs the events they are listed on: participants, prizes, the draw. */
     public static final String ROLE_ORGANIZER = "ORGANIZER";
 
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
+    @Bean
+    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         // The hosting platform's health check must not be bounced to the login page.
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(EndpointRequest.to(HealthEndpoint.class, InfoEndpoint.class)).permitAll());
-        super.configure(http);
-        // Redirect unauthenticated users straight to Keycloak; after logout, send them
-        // through Keycloak's end-session endpoint and back to the app root.
-        setOAuth2LoginPage(http, "/oauth2/authorization/keycloak", "{baseUrl}");
+        // Vaadin's defaults (static resources, CSRF, navigation access control), plus:
+        // redirect unauthenticated users straight to Keycloak; after logout, send them
+        // through Keycloak's end-session endpoint and back to the app root; a fresh login
+        // that did not start from a protected page lands on the event list.
+        http.with(VaadinSecurityConfigurer.vaadin(), vaadin -> vaadin
+                .oauth2LoginPage("/oauth2/authorization/keycloak", "{baseUrl}")
+                .defaultSuccessUrl("/events"));
         http.oauth2Login(login -> login
-                // Where a fresh login lands when it did not start from a protected page.
-                .defaultSuccessUrl("/events")
                 .userInfoEndpoint(userInfo -> userInfo.oidcUserService(keycloakOidcUserService())));
+        return http.build();
     }
 
     /**
