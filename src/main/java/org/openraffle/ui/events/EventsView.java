@@ -1,6 +1,7 @@
 package org.openraffle.ui.events;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -16,7 +17,6 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -26,14 +26,20 @@ import com.vaadin.flow.router.RouteParameters;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.RolesAllowed;
 import org.openraffle.domain.Event;
+import org.openraffle.domain.Organizer;
 import org.openraffle.security.CurrentUser;
 import org.openraffle.security.SecurityConfig;
 import org.openraffle.service.EventService;
+import org.openraffle.service.OrganizerDirectory;
 import org.openraffle.ui.MainLayout;
 import org.openraffle.ui.admin.ParticipantsView;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * The page after login. Organizers pick one of the events they run; admins see every event
@@ -45,12 +51,14 @@ import java.util.List;
 public class EventsView extends VerticalLayout implements BeforeEnterObserver {
 
     private final EventService eventService;
+    private final OrganizerDirectory organizerDirectory;
     private final CurrentUser currentUser;
     private final Grid<Event> grid = new Grid<>(Event.class, false);
     private final Div picker = new Div();
 
-    public EventsView(EventService eventService, CurrentUser currentUser) {
+    public EventsView(EventService eventService, OrganizerDirectory organizerDirectory, CurrentUser currentUser) {
         this.eventService = eventService;
+        this.organizerDirectory = organizerDirectory;
         this.currentUser = currentUser;
         setSizeFull();
 
@@ -116,8 +124,16 @@ public class EventsView extends VerticalLayout implements BeforeEnterObserver {
             badge.getElement().getThemeList().add(e.isDeleted() ? "badge error" : "badge success");
             return badge;
         }).setHeader("Status").setKey("status").setAutoWidth(true).setFlexGrow(0);
-        grid.addColumn(e -> e.getOrganizerEmails().isEmpty() ? "—" : String.join(", ", e.getOrganizerEmails()))
-                .setHeader("Organizers").setKey("organizers").setFlexGrow(1);
+        // Names for organizers who have logged in; plain emails for the rest.
+        grid.addColumn(e -> {
+            if (e.getOrganizerEmails().isEmpty()) {
+                return "—";
+            }
+            Map<String, Organizer> known = organizerDirectory.byEmail();
+            return e.getOrganizerEmails().stream()
+                    .map(email -> known.containsKey(email) ? known.get(email).getName() : email)
+                    .collect(Collectors.joining(", "));
+        }).setHeader("Organizers").setKey("organizers").setFlexGrow(1);
         grid.addComponentColumn(e -> {
             Button open = new Button("Open", VaadinIcon.ARROW_RIGHT.create(), click -> open(e));
             open.setIconAfterText(true);
@@ -156,11 +172,35 @@ public class EventsView extends VerticalLayout implements BeforeEnterObserver {
         name.setValue(event.getName() == null ? "" : event.getName());
         name.setRequired(true);
         name.setWidthFull();
-        TextArea organizers = new TextArea("Organizer emails");
-        organizers.setHelperText("One per line. Each must match the email of the organizer's login.");
-        organizers.setValue(String.join("\n", event.getOrganizerEmails()));
+        // Pick from everyone who has logged in as an organizer; type an email for someone
+        // who has not yet (they appear in the list after their first login).
+        MultiSelectComboBox<String> organizers = new MultiSelectComboBox<>("Organizers");
+        Map<String, Organizer> known = organizerDirectory.byEmail();
+        Set<String> choices = new LinkedHashSet<>(organizerDirectory.findAll().stream().map(Organizer::getEmail).toList());
+        choices.addAll(event.getOrganizerEmails());
+        organizers.setItems(new ArrayList<>(choices));
+        organizers.setItemLabelGenerator(email -> known.containsKey(email) ? known.get(email).getLabel() : email);
+        organizers.setValue(new LinkedHashSet<>(event.getOrganizerEmails()));
+        organizers.setPlaceholder("Choose organizers or type an email");
+        organizers.setHelperText("Organizers appear here after they have logged in once. "
+                + "To add someone before that, type their login email and press Enter.");
+        organizers.setAllowCustomValue(true);
+        organizers.addCustomValueSetListener(e -> {
+            String email = e.getDetail().trim().toLowerCase();
+            if (!email.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")) {
+                organizers.setInvalid(true);
+                organizers.setErrorMessage("\"" + e.getDetail().trim() + "\" is not an email address");
+                return;
+            }
+            organizers.setInvalid(false);
+            // setItems() clears the selection, so capture it first and restore it with the new email.
+            Set<String> selected = new LinkedHashSet<>(organizers.getValue());
+            selected.add(email);
+            choices.add(email);
+            organizers.setItems(new ArrayList<>(choices));
+            organizers.setValue(selected);
+        });
         organizers.setWidthFull();
-        organizers.setMinHeight("8em");
 
         FormLayout form = new FormLayout(name, organizers);
         form.setColspan(name, 2);
@@ -172,7 +212,7 @@ public class EventsView extends VerticalLayout implements BeforeEnterObserver {
             try {
                 event.setName(name.getValue());
                 Event saved = eventService.save(event);
-                eventService.setOrganizers(saved, Arrays.asList(organizers.getValue().split("[,\\n]")));
+                eventService.setOrganizers(saved, organizers.getValue());
                 dialog.close();
                 refresh();
                 Notification.show(isNew ? "Event created" : "Event saved");

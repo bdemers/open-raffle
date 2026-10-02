@@ -15,8 +15,10 @@ for Docker.
 
 ## How it works
 
-1. **Events** — an admin creates an event (a raffle) and lists the organizers who may run
-   it, by email. Everything below lives inside an event.
+1. **Events** — an admin creates an event (a raffle) and picks the organizers who may run
+   it. The picker lists everyone who has logged in as an organizer; someone who hasn't yet
+   can be added by typing the email of their Keycloak account. Everything below lives inside
+   an event.
 2. **Prizes** — organizers enter the prizes and order them with up/down arrows.
 3. **Participants** — each participant gets a name, a phone number, and the ranges of ticket
    numbers they bought — several, if they come back for more. Ranges that overlap another
