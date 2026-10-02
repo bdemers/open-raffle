@@ -30,6 +30,8 @@ import org.openraffle.service.PrizeService;
 import org.openraffle.ui.MainLayout;
 import org.openraffle.ui.Paginator;
 
+import java.util.List;
+
 
 @Route(value = "events/:eventId/prizes", layout = MainLayout.class)
 @PageTitle("Prizes | Open Raffle")
@@ -39,7 +41,8 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
     private final PrizeService prizeService;
     private final EventService eventService;
     private final Grid<Prize> grid = new Grid<>(Prize.class, false);
-    private final Paginator<Prize> pages = new Paginator<>(grid::setItems);
+    private final Paginator<Prize> pages = new Paginator<>(this::showPage);
+    private List<Prize> currentPage = List.of();
     private Event event;
 
     public PrizesView(PrizeService prizeService, EventService eventService) {
@@ -54,7 +57,11 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
         toolbar.expand(toolbar.getComponentAt(0));
         toolbar.setWidthFull();
 
-        // Alphabetical; participants rank prizes themselves on their wishlist page.
+        // Alphabetical; participants rank prizes themselves on their wishlist page. The row
+        // number is for readability only and keeps counting across pages. Fixed width: an
+        // auto-sized column measured while the grid was collapsed once truncated it to "1…".
+        grid.addColumn(prize -> pages.getPage() * pages.getPageSize() + currentPage.indexOf(prize) + 1)
+                .setHeader("#").setWidth("4.5em").setFlexGrow(0);
         grid.addColumn(Prize::getName).setHeader("Name").setAutoWidth(true);
         grid.addColumn(Prize::getDescription).setHeader("Description").setFlexGrow(1);
         grid.addComponentColumn(prize -> {
@@ -90,6 +97,11 @@ public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
         Prize prize = new Prize();
         prize.setEvent(event);
         return prize;
+    }
+
+    private void showPage(List<Prize> prizes) {
+        currentPage = prizes;
+        grid.setItems(prizes);
     }
 
     private void refresh() {
