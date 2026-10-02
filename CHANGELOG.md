@@ -5,6 +5,15 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-10-02
+
+### Fixed
+- **Organizers were denied access with a stock Keycloak client.** Keycloak's default
+  realm-roles mapper puts `realm_access.roles` only in the access token, which the app never
+  read, so a user with the `ADMIN` role still saw "Could not navigate to ''" after logging
+  in. Realm roles are now read from the access token as well as the ID token and userinfo,
+  so no mapper changes are needed in Keycloak.
+
 ## [0.1.1] - 2026-10-01
 
 ### Added
@@ -48,5 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
+[0.1.2]: https://github.com/dogeared/open-raffle/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/dogeared/open-raffle/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/dogeared/open-raffle/releases/tag/v0.1.0
