@@ -1,5 +1,6 @@
 package org.openraffle.service;
 
+import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
 import org.openraffle.repository.PrizeRepository;
@@ -21,14 +22,18 @@ public class PrizeService {
     }
 
     @Transactional(readOnly = true)
-    public List<Prize> findAll() {
-        return prizes.findAllByOrderBySortOrderAscNameAsc();
+    public List<Prize> findAll(Event event) {
+        return prizes.findAllByEventOrderBySortOrderAscNameAsc(event);
     }
 
-    /** New prizes go to the bottom of the list; existing ones keep their position. */
+    /** New prizes go to the bottom of their event's list; existing ones keep their position. */
     public Prize save(Prize prize) {
+        if (prize.getEvent() == null) {
+            throw new IllegalArgumentException("Prize must belong to an event");
+        }
         if (prize.getId() == null) {
-            prize.setSortOrder(prizes.findAll().stream().mapToInt(Prize::getSortOrder).max().orElse(-1) + 1);
+            prize.setSortOrder(prizes.findAllByEventOrderBySortOrderAscNameAsc(prize.getEvent()).stream()
+                    .mapToInt(Prize::getSortOrder).max().orElse(-1) + 1);
         }
         return prizes.save(prize);
     }
@@ -42,7 +47,7 @@ public class PrizeService {
      * organizer's list and renumbers everything so positions stay contiguous.
      */
     public void move(Prize prize, int delta) {
-        List<Prize> ordered = prizes.findAllByOrderBySortOrderAscNameAsc();
+        List<Prize> ordered = prizes.findAllByEventOrderBySortOrderAscNameAsc(prize.getEvent());
         int from = ordered.indexOf(prize);
         int to = from + delta;
         if (from < 0 || to < 0 || to >= ordered.size()) {

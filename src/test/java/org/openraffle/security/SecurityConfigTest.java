@@ -49,6 +49,30 @@ class SecurityConfigTest {
     }
 
     @Test
+    void adminImpliesOrganizer() {
+        OidcIdToken token = OidcIdToken.withTokenValue("t")
+                .subject("boss")
+                .claim("realm_access", Map.of("roles", List.of("ADMIN")))
+                .build();
+
+        Collection<? extends GrantedAuthority> mapped = mapper.mapAuthorities(List.of(new OidcUserAuthority(token, null)));
+
+        assertThat(mapped).extracting(GrantedAuthority::getAuthority).contains("ROLE_ADMIN", "ROLE_ORGANIZER");
+    }
+
+    @Test
+    void organizerDoesNotImplyAdmin() {
+        OidcIdToken token = OidcIdToken.withTokenValue("t")
+                .subject("helper")
+                .claim("realm_access", Map.of("roles", List.of("ORGANIZER")))
+                .build();
+
+        Collection<? extends GrantedAuthority> mapped = mapper.mapAuthorities(List.of(new OidcUserAuthority(token, null)));
+
+        assertThat(mapped).extracting(GrantedAuthority::getAuthority).contains("ROLE_ORGANIZER").doesNotContain("ROLE_ADMIN");
+    }
+
+    @Test
     void realmRolesAreReadFromAnAccessTokenJwt() {
         // Keycloak's default realm-roles mapper puts roles in the access token only.
         String accessToken = new PlainJWT(new JWTClaimsSet.Builder()

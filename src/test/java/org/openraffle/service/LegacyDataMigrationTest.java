@@ -1,0 +1,67 @@
+package org.openraffle.service;
+
+import org.junit.jupiter.api.Test;
+import org.openraffle.domain.Event;
+import org.openraffle.domain.Participant;
+import org.openraffle.domain.Prize;
+import org.openraffle.repository.EventRepository;
+import org.openraffle.repository.ParticipantRepository;
+import org.openraffle.repository.PrizeRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.DefaultApplicationArguments;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Import;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest
+@Import(LegacyDataMigration.class)
+class LegacyDataMigrationTest {
+
+    @Autowired
+    LegacyDataMigration migration;
+
+    @Autowired
+    EventRepository events;
+
+    @Autowired
+    ParticipantRepository participants;
+
+    @Autowired
+    PrizeRepository prizes;
+
+    @Autowired
+    TestEntityManager em;
+
+    @Test
+    void rowsWithoutAnEventAreAttachedToADefaultEvent() {
+        Participant p = new Participant();
+        p.setName("Old-timer");
+        p.setTicketStart(1);
+        p.setTicketEnd(5);
+        p.setToken("legacy");
+        em.persist(p);
+        Prize z = new Prize();
+        z.setName("Old prize");
+        em.persist(z);
+        em.flush();
+        em.clear();
+
+        migration.run(new DefaultApplicationArguments());
+        em.clear();
+
+        Event def = events.findByNameIgnoreCase(LegacyDataMigration.DEFAULT_EVENT_NAME).orElseThrow();
+        assertThat(participants.findByToken("legacy")).get().extracting(Participant::getEvent).isEqualTo(def);
+        assertThat(prizes.findAllByEventOrderBySortOrderAscNameAsc(def)).extracting(Prize::getName).containsExactly("Old prize");
+        assertThat(participants.countByEventIsNull()).isZero();
+        assertThat(prizes.countByEventIsNull()).isZero();
+    }
+
+    @Test
+    void doesNothingWhenEverythingHasAnEvent() {
+        migration.run(new DefaultApplicationArguments());
+
+        assertThat(events.findByNameIgnoreCase(LegacyDataMigration.DEFAULT_EVENT_NAME)).isEmpty();
+    }
+}

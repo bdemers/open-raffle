@@ -20,13 +20,17 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.RolesAllowed;
+import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
 import org.openraffle.security.SecurityConfig;
+import org.openraffle.service.EventService;
 import org.openraffle.service.ParticipantService;
 import org.openraffle.service.PrizeService;
 import org.openraffle.ui.MainLayout;
@@ -39,19 +43,22 @@ import java.util.List;
  * through so the organizer can move straight to the next preference. Prizes that are
  * not on the winner's list (including ones added on the spot) can be given out too.
  */
-@Route(value = "draw", layout = MainLayout.class)
+@Route(value = "events/:eventId/draw", layout = MainLayout.class)
 @PageTitle("Draw | Open Raffle")
-@RolesAllowed(SecurityConfig.ROLE_ADMIN)
-public class DrawView extends VerticalLayout {
+@RolesAllowed({SecurityConfig.ROLE_ORGANIZER, SecurityConfig.ROLE_ADMIN})
+public class DrawView extends VerticalLayout implements BeforeEnterObserver {
 
     private final ParticipantService participantService;
     private final PrizeService prizeService;
+    private final EventService eventService;
     private final Div result = new Div();
     private Integer lastTicket;
+    private Event event;
 
-    public DrawView(ParticipantService participantService, PrizeService prizeService) {
+    public DrawView(ParticipantService participantService, PrizeService prizeService, EventService eventService) {
         this.participantService = participantService;
         this.prizeService = prizeService;
+        this.eventService = eventService;
         setMaxWidth("720px");
 
         IntegerField ticket = new IntegerField("Drawn ticket #");
@@ -67,13 +74,18 @@ public class DrawView extends VerticalLayout {
         add(new H2("Draw a winner"), form, result);
     }
 
+    @Override
+    public void beforeEnter(BeforeEnterEvent enter) {
+        EventScopedView.resolve(enter, eventService).ifPresent(e -> event = e);
+    }
+
     private void lookup(Integer ticketNumber) {
         lastTicket = ticketNumber;
         result.removeAll();
         if (ticketNumber == null) {
             return;
         }
-        participantService.findByTicket(ticketNumber).ifPresentOrElse(this::showWinner, () -> {
+        participantService.findByTicket(event, ticketNumber).ifPresentOrElse(this::showWinner, () -> {
             Span none = new Span("No participant holds ticket " + ticketNumber + ".");
             none.addClassNames(LumoUtility.TextColor.ERROR);
             result.add(none);
@@ -126,7 +138,7 @@ public class DrawView extends VerticalLayout {
      * list has nothing left to give.
      */
     private Details otherPrizes(Participant winner, boolean open) {
-        List<Prize> others = prizeService.findAll().stream()
+        List<Prize> others = prizeService.findAll(event).stream()
                 .filter(prize -> !prize.isClaimed() && !winner.getWishlist().contains(prize))
                 .toList();
 
@@ -173,6 +185,7 @@ public class DrawView extends VerticalLayout {
             return;
         }
         Prize prize = new Prize();
+        prize.setEvent(event);
         prize.setName(name);
         prize = prizeService.save(prize);
         if (claim) {

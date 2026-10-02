@@ -17,31 +17,38 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.RolesAllowed;
+import org.openraffle.domain.Event;
 import org.openraffle.domain.Prize;
 import org.openraffle.security.SecurityConfig;
+import org.openraffle.service.EventService;
 import org.openraffle.service.PrizeService;
 import org.openraffle.ui.MainLayout;
 
 import java.util.List;
 
-@Route(value = "prizes", layout = MainLayout.class)
+@Route(value = "events/:eventId/prizes", layout = MainLayout.class)
 @PageTitle("Prizes | Open Raffle")
-@RolesAllowed(SecurityConfig.ROLE_ADMIN)
-public class PrizesView extends VerticalLayout {
+@RolesAllowed({SecurityConfig.ROLE_ORGANIZER, SecurityConfig.ROLE_ADMIN})
+public class PrizesView extends VerticalLayout implements BeforeEnterObserver {
 
     private final PrizeService prizeService;
+    private final EventService eventService;
     private final Grid<Prize> grid = new Grid<>(Prize.class, false);
     private List<Prize> prizes = List.of();
+    private Event event;
 
-    public PrizesView(PrizeService prizeService) {
+    public PrizesView(PrizeService prizeService, EventService eventService) {
         this.prizeService = prizeService;
+        this.eventService = eventService;
         setSizeFull();
 
-        Button add = new Button("Add prize", VaadinIcon.PLUS.create(), e -> openEditor(new Prize()));
+        Button add = new Button("Add prize", VaadinIcon.PLUS.create(), e -> openEditor(newPrize()));
         add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         HorizontalLayout toolbar = new HorizontalLayout(new H2("Prizes"), add);
         toolbar.setAlignItems(Alignment.BASELINE);
@@ -82,11 +89,24 @@ public class PrizesView extends VerticalLayout {
         grid.setSizeFull();
 
         add(toolbar, grid);
-        refresh();
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent enter) {
+        EventScopedView.resolve(enter, eventService).ifPresent(e -> {
+            event = e;
+            refresh();
+        });
+    }
+
+    private Prize newPrize() {
+        Prize prize = new Prize();
+        prize.setEvent(event);
+        return prize;
     }
 
     private void refresh() {
-        prizes = prizeService.findAll();
+        prizes = prizeService.findAll(event);
         grid.setItems(prizes);
     }
 

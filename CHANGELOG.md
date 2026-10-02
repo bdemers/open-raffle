@@ -5,6 +5,27 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-10-02
+
+### Added
+- **Events.** Raffles are now events: each has a unique name, and participants, prizes and
+  the draw live inside one. Admins create, edit, soft-delete and reinstate events from the
+  new event list and assign organizers to them by email.
+- **`ORGANIZER` role.** Organizers log in and pick one of the events they are listed on
+  (going straight in when there is only one); everything inside an event works as before.
+  `ADMIN` keeps all of that on every event; the app grants `ORGANIZER` to every `ADMIN`.
+- **Landing page** at `/` with a description of the app and a log-in button for organizers.
+- **Global footer** — "made with ❤️ by dogeared · version x.y.z" — on every page, including
+  participants' wishlist pages; the version also appears at `GET /actuator/info`.
+- A participant's wishlist link says "This raffle is over" once its event is deleted.
+
+### Changed
+- Organizer pages moved under `/events/{id}`, `/events/{id}/prizes` and `/events/{id}/draw`;
+  the old `/`, `/prizes` and `/draw` routes are gone. QR-code links (`/p/{token}`) are
+  unchanged.
+- Participants and prizes that predate events are attached to a "Default event" on the
+  first start-up after upgrading.
+
 ## [0.1.2] - 2026-10-02
 
 ### Fixed
@@ -57,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
+[0.2.0]: https://github.com/dogeared/open-raffle/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/dogeared/open-raffle/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/dogeared/open-raffle/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/dogeared/open-raffle/releases/tag/v0.1.0

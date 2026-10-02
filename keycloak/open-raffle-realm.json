@@ -8,8 +8,18 @@
   "roles": {
     "realm": [
       {
+        "name": "ORGANIZER",
+        "description": "Runs the events they are listed on: participants, prizes, the draw"
+      },
+      {
         "name": "ADMIN",
-        "description": "Raffle organizer: can manage participants and prizes"
+        "description": "Manages events and organizers; has everything ORGANIZER has",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "ORGANIZER"
+          ]
+        }
       }
     ]
   },
@@ -26,13 +36,29 @@
       "serviceAccountsEnabled": false,
       "rootUrl": "http://localhost:8080",
       "baseUrl": "/",
-      "redirectUris": ["http://localhost:8080/*", "http://127.0.0.1:8080/*", "http://localhost:8081/*", "http://127.0.0.1:8081/*"],
-      "webOrigins": ["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:8081", "http://127.0.0.1:8081"],
+      "redirectUris": [
+        "http://localhost:8080/*",
+        "http://127.0.0.1:8080/*",
+        "http://localhost:8081/*",
+        "http://127.0.0.1:8081/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081"
+      ],
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:8080/*##http://127.0.0.1:8080/*##http://localhost:8081/*##http://127.0.0.1:8081/*",
         "pkce.code.challenge.method": "S256"
       },
-      "defaultClientScopes": ["openid", "profile", "email", "roles", "web-origins"],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles",
+        "web-origins"
+      ],
       "protocolMappers": [
         {
           "name": "realm roles in ID token",
@@ -66,7 +92,27 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["ADMIN"]
+      "realmRoles": [
+        "ADMIN"
+      ]
+    },
+    {
+      "username": "helper",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Helpful",
+      "lastName": "Organizer",
+      "email": "helper@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "helper",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ORGANIZER"
+      ]
     }
   ]
 }
