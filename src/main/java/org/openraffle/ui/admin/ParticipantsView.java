@@ -37,6 +37,7 @@ import org.openraffle.service.ParticipantService;
 import org.openraffle.service.ParticipantService.TicketRangeConflictException;
 import org.openraffle.service.QrCodeService;
 import org.openraffle.ui.MainLayout;
+import org.openraffle.ui.Paginator;
 
 import java.io.ByteArrayInputStream;
 import java.util.stream.Collectors;
@@ -50,6 +51,7 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
     private final QrCodeService qrCodeService;
     private final EventService eventService;
     private final Grid<Participant> grid = new Grid<>(Participant.class, false);
+    private final Paginator<Participant> pages = new Paginator<>(grid::setItems);
     private Event event;
 
     public ParticipantsView(ParticipantService participantService, QrCodeService qrCodeService, EventService eventService) {
@@ -93,7 +95,7 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
         grid.setSizeFull();
 
-        add(toolbar, grid);
+        add(toolbar, grid, pages);
     }
 
     @Override
@@ -111,7 +113,7 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
     }
 
     private void refresh() {
-        grid.setItems(participantService.findAll(event));
+        pages.setItems(participantService.findAll(event));
     }
 
     private void openEditor(Participant participant) {
