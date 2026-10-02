@@ -1,0 +1,217 @@
+/* ===================================================================
+   Open Raffle — Keycloak login theme
+   Mirrors the app's Lumo look: system font, purple primary
+   hsl(262, 60%, 48%), soft gray page, white rounded card.
+   Applies to every login-flow page (login, reset password, errors...).
+   =================================================================== */
+
+:root {
+    --or-primary: hsl(262, 60%, 48%);
+    --or-primary-dark: hsl(262, 60%, 40%);
+    --or-primary-10: hsla(262, 60%, 48%, 0.1);
+    --or-primary-50: hsla(262, 60%, 48%, 0.5);
+    --or-text: hsl(214, 35%, 15%);
+    --or-text-secondary: hsla(214, 42%, 18%, 0.72);
+    --or-text-tertiary: hsla(214, 42%, 18%, 0.5);
+    --or-border: hsla(214, 57%, 24%, 0.1);
+    --or-page: hsl(214, 65%, 98%);
+    --or-card: #ffffff;
+    --or-error: hsl(3, 85%, 48%);
+    --or-radius-m: 0.25em;
+    --or-radius-l: 0.75em;
+    --or-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* --- Page --- */
+html,
+body,
+.login-pf,
+.login-pf body {
+    background: var(--or-page) !important;
+    background-image: none !important;
+    font-family: var(--or-font);
+    color: var(--or-text);
+}
+
+.login-pf-page {
+    padding-top: 6vh;
+}
+
+/* --- Brand header (the realm's display name) --- */
+#kc-header-wrapper {
+    font-family: var(--or-font);
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--or-primary);
+    text-transform: none;
+    padding: 0 0 1.25rem 0;
+    line-height: 1.2;
+}
+
+/* --- Card --- */
+.card-pf {
+    background: var(--or-card);
+    border: 1px solid var(--or-border);
+    border-radius: var(--or-radius-l);
+    box-shadow: 0 4px 16px hsla(214, 45%, 20%, 0.07), 0 1px 3px hsla(214, 45%, 20%, 0.05);
+    padding: 2rem 2.25rem 1.75rem;
+    margin-top: 0;
+}
+
+.login-pf-page .login-pf-header h1,
+#kc-page-title {
+    font-family: var(--or-font);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--or-text);
+    margin-bottom: 1.25rem;
+}
+
+/* --- Labels and inputs --- */
+.pf-c-form__label-text,
+label.control-label,
+.login-pf label {
+    font-family: var(--or-font);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--or-text-secondary);
+}
+
+.pf-c-form-control,
+input.form-control {
+    font-family: var(--or-font);
+    font-size: 1rem;
+    color: var(--or-text);
+    background: hsla(214, 61%, 25%, 0.05);
+    background-image: none;
+    border: 1px solid transparent;
+    border-radius: var(--or-radius-m);
+    padding: 0.5rem 0.75rem;
+    height: auto;
+    min-height: 2.5rem;
+    box-shadow: none;
+    transition: box-shadow 0.15s, background-color 0.15s;
+}
+
+.pf-c-form-control:hover,
+input.form-control:hover {
+    background: hsla(214, 61%, 25%, 0.08);
+}
+
+.pf-c-form-control:focus,
+input.form-control:focus {
+    outline: none;
+    background: var(--or-card);
+    border-color: transparent;
+    box-shadow: 0 0 0 2px var(--or-primary-50);
+}
+
+/* PatternFly marks invalid fields with a tiled icon; keep ours to a red ring. */
+.pf-c-form-control[aria-invalid="true"],
+.pf-c-form-control.pf-m-error,
+.has-error .form-control {
+    background-image: none !important;
+    border-color: transparent;
+    box-shadow: 0 0 0 1px var(--or-error);
+    padding-right: 0.75rem;
+}
+
+.pf-c-form__helper-text.pf-m-error,
+#input-error,
+.kc-feedback-text,
+span.pf-c-form__helper-text {
+    color: var(--or-error);
+    font-size: 0.8125rem;
+}
+
+/* The eye button that reveals the password */
+.pf-c-button.pf-m-control {
+    border-color: transparent;
+    background: transparent;
+    color: var(--or-text-tertiary);
+}
+
+.pf-c-button.pf-m-control:hover {
+    color: var(--or-primary);
+}
+
+/* --- Buttons --- */
+.pf-c-button.pf-m-primary,
+.btn-primary {
+    font-family: var(--or-font);
+    font-weight: 600;
+    font-size: 1rem;
+    background: var(--or-primary);
+    border: none;
+    border-radius: var(--or-radius-m);
+    padding: 0.625rem 1rem;
+    box-shadow: none;
+    transition: background-color 0.15s;
+}
+
+.pf-c-button.pf-m-primary:hover,
+.pf-c-button.pf-m-primary:focus,
+.btn-primary:hover,
+.btn-primary:focus {
+    background: var(--or-primary-dark);
+    border: none;
+    box-shadow: 0 0 0 2px var(--or-primary-50);
+}
+
+/* --- Links ("Forgot password?", "Back to login") --- */
+a,
+.login-pf a,
+#kc-form-options a,
+#kc-info a {
+    color: var(--or-primary);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+a:hover,
+.login-pf a:hover {
+    color: var(--or-primary-dark);
+    text-decoration: underline;
+}
+
+/* --- Checkbox "Remember me", footer info --- */
+.checkbox label,
+#kc-form-options label {
+    color: var(--or-text-secondary);
+    font-size: 0.875rem;
+}
+
+#kc-info,
+#kc-info-wrapper {
+    font-family: var(--or-font);
+    color: var(--or-text-secondary);
+    font-size: 0.875rem;
+}
+
+/* --- Alerts (errors, info banners) --- */
+.alert,
+.pf-c-alert {
+    border-radius: var(--or-radius-m);
+    font-family: var(--or-font);
+}
+
+.alert-error,
+.pf-c-alert.pf-m-danger {
+    background: hsla(3, 85%, 48%, 0.08);
+    border-color: hsla(3, 85%, 48%, 0.3);
+    color: var(--or-error);
+}
+
+.alert-success,
+.pf-c-alert.pf-m-success {
+    background: var(--or-primary-10);
+    border-color: var(--or-primary-50);
+    color: var(--or-primary-dark);
+}
+
+/* Language picker and "Try another way" keep their layout; just tint them */
+#kc-locale a,
+#kc-select-try-another-way {
+    color: var(--or-text-secondary);
+}
