@@ -19,7 +19,6 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.ValidationException;
@@ -198,16 +197,19 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
     }
 
     /** A "first – last" pair with a remove button; returns the first-ticket field for focusing. */
-    private static IntegerField addRangeRow(VerticalLayout rows, TicketRange existing) {
-        IntegerField first = new IntegerField("First ticket #");
-        IntegerField last = new IntegerField("Last ticket #");
-        first.setMin(0);
-        last.setMin(0);
+    private static TextField addRangeRow(VerticalLayout rows, TicketRange existing) {
+        TextField first = new TextField("First ticket #");
+        TextField last = new TextField("Last ticket #");
+        first.setPlaceholder("1 or 987-001");
+        first.setHelperText("Digits, or a dashed prefix and digits, exactly as printed on the roll");
+        last.setPlaceholder("100 or 987-100");
         // The last ticket defaults to the first one; select it on focus so typing replaces it.
         last.setAutoselect(true);
         if (existing != null) {
-            first.setValue((int) existing.getStart());
-            last.setValue((int) existing.getEnd());
+            List<String> ends = existing.getLabel().contains(" – ")
+                    ? List.of(existing.getLabel().split(" – ")) : List.of(existing.getLabel(), existing.getLabel());
+            first.setValue(ends.get(0));
+            last.setValue(ends.get(1));
         }
         // Prefill in the browser at "change" time (before focus moves on) so autoselect on
         // the last-ticket field highlights the value; the server listener is the fallback.
@@ -216,7 +218,7 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
                         + " if (!end.value && this.value) { end.value = this.value; end.dispatchEvent(new Event('change')); } })",
                 last.getElement());
         first.addValueChangeListener(e -> {
-            if (e.isFromClient() && last.isEmpty() && e.getValue() != null) {
+            if (e.isFromClient() && last.isEmpty() && e.getValue() != null && !e.getValue().isBlank()) {
                 last.setValue(e.getValue());
             }
         });
@@ -244,28 +246,29 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
                 .forEach(b -> b.setEnabled(count > 1)));
     }
 
-    /** The ranges typed into the rows, or null (with the offending fields marked) if a row is incomplete. */
+    /** The ranges typed into the rows, or null (with the offending fields marked) if a row is incomplete or invalid. */
     private static List<TicketRange> readRanges(VerticalLayout rows) {
         List<TicketRange> ranges = new ArrayList<>();
         boolean complete = true;
         for (var child : rows.getChildren().toList()) {
             HorizontalLayout row = (HorizontalLayout) child;
-            IntegerField first = (IntegerField) row.getComponentAt(0);
-            IntegerField last = (IntegerField) row.getComponentAt(1);
+            TextField first = (TextField) row.getComponentAt(0);
+            TextField last = (TextField) row.getComponentAt(1);
             boolean rowOk = true;
-            for (IntegerField field : List.of(first, last)) {
-                boolean missing = field.getValue() == null;
+            for (TextField field : List.of(first, last)) {
+                boolean missing = field.getValue() == null || field.getValue().isBlank();
                 field.setInvalid(missing);
                 field.setErrorMessage(missing ? "Required" : null);
                 rowOk &= !missing;
             }
-            if (rowOk && last.getValue() < first.getValue()) {
-                last.setInvalid(true);
-                last.setErrorMessage("Must be ≥ first ticket");
-                rowOk = false;
-            }
             if (rowOk) {
-                ranges.add(new TicketRange(first.getValue(), last.getValue()));
+                try {
+                    ranges.add(TicketRange.of(first.getValue(), last.getValue()));
+                } catch (IllegalArgumentException ex) {
+                    last.setInvalid(true);
+                    last.setErrorMessage(ex.getMessage());
+                    rowOk = false;
+                }
             }
             complete &= rowOk;
         }

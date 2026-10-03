@@ -21,12 +21,15 @@ for Docker.
    an event.
 2. **Prizes** — organizers enter the prizes and order them with up/down arrows.
 3. **Participants** — each participant gets a name, a phone number, and the ranges of ticket
-   numbers they bought — several, if they come back for more. Ranges that overlap another
+   numbers they bought — several, if they come back for more. Tickets are entered exactly as
+   printed on the roll: plain numbers (`1 – 100`) or dashed prefixes (`987-001 – 987-100`,
+   `4563-100-300 – 4563-100-1000`); everything up to the last dash is the prefix, so
+   `4563-100` and `4564-100` are different tickets. Ranges that overlap another
    participant's (or each other) are rejected.
 4. **QR code** — the app shows (and can download) a QR code per participant. It opens a
    login-free page, identified by an unguessable token, where they rank the prizes they
    want and leave notes.
-5. **Draw** — type the drawn ticket number. The winner's preferences appear with a checkbox
+5. **Draw** — type the drawn ticket number as printed. The winner's preferences appear with a checkbox
    per prize; tick the one they take. Prizes already claimed by earlier winners are struck
    through. Prizes not on their list can be given out too, and new prizes can be added and
    handed over on the spot.

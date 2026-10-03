@@ -5,6 +5,17 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-02
+
+### Added
+- **Ticket numbers with prefixes.** Rolls are numbered in different formats, and ticket
+  ranges are now entered exactly as printed: plain numbers (`1 – 100`) or dashed prefixes
+  (`987-001 – 987-100`, `4563-100-300 – 4563-100-1000`). Everything up to the last dash is
+  the prefix and the digits after it the sequence; both ends of a range share the prefix,
+  and ranges with different prefixes never overlap (`4563-100` and `4564-100` are different
+  tickets). The draw page takes the drawn ticket as printed, dashes included. Zero-padding
+  is kept, so `987-001` stays `987-001`.
+
 ## [1.0.1] - 2026-10-02
 
 ### Fixed
@@ -182,6 +193,7 @@ vulnerabilities (`snyk test` and `snyk code test` both report 0 issues).
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
+[1.1.0]: https://github.com/dogeared/open-raffle/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/dogeared/open-raffle/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/dogeared/open-raffle/compare/v0.4.0...v1.0.0
 [0.4.0]: https://github.com/dogeared/open-raffle/compare/v0.3.2...v0.4.0

@@ -1,5 +1,6 @@
 package org.openraffle.service;
 
+import jakarta.persistence.EntityManager;
 import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.repository.EventRepository;
@@ -28,11 +29,14 @@ public class LegacyDataMigration implements ApplicationRunner {
     private final EventRepository events;
     private final ParticipantRepository participants;
     private final PrizeRepository prizes;
+    private final EntityManager entityManager;
 
-    public LegacyDataMigration(EventRepository events, ParticipantRepository participants, PrizeRepository prizes) {
+    public LegacyDataMigration(EventRepository events, ParticipantRepository participants, PrizeRepository prizes,
+                               EntityManager entityManager) {
         this.events = events;
         this.participants = participants;
         this.prizes = prizes;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -40,6 +44,16 @@ public class LegacyDataMigration implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         adoptLegacyTicketRanges();
         attachOrphansToDefaultEvent();
+        blankPrefixesOnRangesThatPredateThem();
+    }
+
+    /** Ranges written before 1.1.0 have no prefix column value; they are plain numbers. */
+    private void blankPrefixesOnRangesThatPredateThem() {
+        int n = entityManager.createNativeQuery("update participant_ticket_range set prefix = '' where prefix is null")
+                .executeUpdate();
+        if (n > 0) {
+            log.info("Marked {} ticket range(s) that predate prefixes as plain numbers", n);
+        }
     }
 
     /** Before 0.4.0 a participant had exactly one range in two columns; turn it into a range. */

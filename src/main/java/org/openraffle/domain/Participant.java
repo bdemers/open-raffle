@@ -151,9 +151,11 @@ public class Participant {
         ranges.add(new TicketRange(start, end));
     }
 
-    /** Ranges sorted by first ticket, for display. */
+    /** Ranges sorted by prefix, then first ticket, for display. */
     public List<TicketRange> getRangesInOrder() {
-        return ranges.stream().sorted(Comparator.comparingLong(TicketRange::getStart)).toList();
+        return ranges.stream()
+                .sorted(Comparator.comparing(TicketRange::getPrefix).thenComparingLong(TicketRange::getStart))
+                .toList();
     }
 
     /** First ticket of the lowest range; what the participant list is sorted by. */
@@ -224,8 +226,13 @@ public class Participant {
         return ranges.stream().mapToLong(TicketRange::getCount).sum();
     }
 
-    public boolean holdsTicket(long ticket) {
-        return ranges.stream().anyMatch(r -> r.contains(ticket));
+    public boolean holdsTicket(long plainTicket) {
+        return ranges.stream().anyMatch(r -> r.contains(plainTicket));
+    }
+
+    /** Whether any range holds the ticket, given as printed (e.g. "987-042" or "42"). */
+    public boolean holdsTicket(String printed) {
+        return TicketRange.TicketNumber.parse(printed).map(t -> ranges.stream().anyMatch(r -> r.contains(t))).orElse(false);
     }
 
     /** "1 – 10" or, with several ranges, "1 – 10, 25 – 30". */

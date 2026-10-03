@@ -6,7 +6,6 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.ListItem;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 import org.junit.jupiter.api.Test;
 import org.openraffle.domain.Event;
@@ -52,8 +51,8 @@ class ParticipantsViewTest extends KaribuTest {
 
         _click(_get(Button.class, spec -> spec.withText("Add participant")));
         _setValue(_get(TextField.class, spec -> spec.withLabel("Name")), "Ann");
-        _setValue(_get(IntegerField.class, spec -> spec.withLabel("First ticket #")), 100);
-        _setValue(_get(IntegerField.class, spec -> spec.withLabel("Last ticket #")), 104);
+        _setValue(_get(TextField.class, spec -> spec.withLabel("First ticket #")), "100");
+        _setValue(_get(TextField.class, spec -> spec.withLabel("Last ticket #")), "104");
         _click(_get(Button.class, spec -> spec.withText("Create & show QR")));
 
         TextField phone = _get(TextField.class, spec -> spec.withLabel("Phone"));
@@ -85,26 +84,52 @@ class ParticipantsViewTest extends KaribuTest {
         navigate("events/" + fair.getId());
 
         _click((Button) _getCellComponent(grid(), 0, "name"));
-        assertThat(_find(IntegerField.class, spec -> spec.withLabel("First ticket #"))).hasSize(1);
+        assertThat(_find(TextField.class, spec -> spec.withLabel("First ticket #"))).hasSize(1);
         _click(_get(Button.class, spec -> spec.withText("Add another range")));
-        List<IntegerField> firsts = _find(IntegerField.class, spec -> spec.withLabel("First ticket #"));
-        List<IntegerField> lasts = _find(IntegerField.class, spec -> spec.withLabel("Last ticket #"));
+        List<TextField> firsts = _find(TextField.class, spec -> spec.withLabel("First ticket #"));
+        List<TextField> lasts = _find(TextField.class, spec -> spec.withLabel("Last ticket #"));
         assertThat(firsts).hasSize(2);
-        _setValue(firsts.get(1), 15);
-        _setValue(lasts.get(1), 18);
+        _setValue(firsts.get(1), "15");
+        _setValue(lasts.get(1), "18");
         _click(_get(Button.class, spec -> spec.withText("Save")));
 
         // 15 – 18 belongs to Bob: refused, dialog stays open.
         assertThat(_find(Dialog.class)).isNotEmpty();
         assertThat(participants.findByToken("token-ann").orElseThrow().getRanges()).hasSize(1);
 
-        _setValue(firsts.get(1), 30);
-        _setValue(lasts.get(1), 35);
+        _setValue(firsts.get(1), "30");
+        _setValue(lasts.get(1), "35");
         _click(_get(Button.class, spec -> spec.withText("Save")));
 
         _assertNoDialogs();
         assertThat(_getFormattedRow(grid(), 0)).contains("1 – 10, 30 – 35", "16");
         assertThat(participants.findByToken("token-ann").orElseThrow().holdsTicket(33)).isTrue();
+    }
+
+    @Test
+    void prefixedTicketRangesAreEnteredAsPrintedAndValidated() {
+        openEventAsOrganizer();
+
+        _click(_get(Button.class, spec -> spec.withText("Add participant")));
+        _setValue(_get(TextField.class, spec -> spec.withLabel("Name")), "Nigel");
+        _setValue(_get(TextField.class, spec -> spec.withLabel("Phone")), "555-0102");
+        TextField first = _get(TextField.class, spec -> spec.withLabel("First ticket #"));
+        TextField last = _get(TextField.class, spec -> spec.withLabel("Last ticket #"));
+        _setValue(first, "987-001");
+        _setValue(last, "988-100");
+        _click(_get(Button.class, spec -> spec.withText("Create & show QR")));
+
+        assertThat(last.isInvalid()).isTrue();
+        assertThat(last.getErrorMessage()).contains("share the prefix");
+        assertThat(participants.count()).isZero();
+
+        _setValue(last, "987-100");
+        _click(_get(Button.class, spec -> spec.withText("Create & show QR")));
+        _click(_get(Button.class, spec -> spec.withText("Close")));
+
+        assertThat(_getFormattedRow(grid(), 0)).contains("987-001 – 987-100", "100");
+        assertThat(participants.findAll().get(0).holdsTicket("987-042")).isTrue();
+        assertThat(participants.findAll().get(0).holdsTicket("988-042")).isFalse();
     }
 
     @Test
@@ -139,8 +164,8 @@ class ParticipantsViewTest extends KaribuTest {
         _click(_get(Button.class, spec -> spec.withText("Add participant")));
         _setValue(_get(TextField.class, spec -> spec.withLabel("Name")), "Bob");
         _setValue(_get(TextField.class, spec -> spec.withLabel("Phone")), "555-0101");
-        _setValue(_get(IntegerField.class, spec -> spec.withLabel("First ticket #")), 5);
-        _setValue(_get(IntegerField.class, spec -> spec.withLabel("Last ticket #")), 15);
+        _setValue(_get(TextField.class, spec -> spec.withLabel("First ticket #")), "5");
+        _setValue(_get(TextField.class, spec -> spec.withLabel("Last ticket #")), "15");
         _click(_get(Button.class, spec -> spec.withText("Create & show QR")));
 
         assertThat(participants.count()).isEqualTo(1);

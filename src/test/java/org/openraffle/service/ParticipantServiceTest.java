@@ -171,6 +171,33 @@ class ParticipantServiceTest {
     }
 
     @Test
+    void prefixedRollsAreLookedUpAsPrintedAndOnlyClashWithinTheirPrefix() {
+        Participant ann = participant("Ann", 1, 10);
+        ann.setRanges(new ArrayList<>(List.of(TicketRange.of("987-001", "987-100"))));
+        participantService.save(ann);
+        Participant bob = participant("Bob", 1, 10);
+        bob.setRanges(new ArrayList<>(List.of(TicketRange.of("4563-100-300", "4563-100-1000"))));
+        participantService.save(bob);
+        Participant cat = participant("Cat", 1, 10);
+        cat.setRanges(new ArrayList<>(List.of(TicketRange.of("4564-100-300", "4564-100-1000"), TicketRange.of("1", "50"))));
+        participantService.save(cat);
+
+        assertThat(participantService.findByTicket(event, "987-042")).get().extracting(Participant::getName).isEqualTo("Ann");
+        assertThat(participantService.findByTicket(event, "987-42")).get().extracting(Participant::getName).isEqualTo("Ann");
+        assertThat(participantService.findByTicket(event, "4563-100-500")).get().extracting(Participant::getName).isEqualTo("Bob");
+        assertThat(participantService.findByTicket(event, "4564-100-500")).get().extracting(Participant::getName).isEqualTo("Cat");
+        assertThat(participantService.findByTicket(event, "42")).get().extracting(Participant::getName).isEqualTo("Cat");
+        assertThat(participantService.findByTicket(event, "988-042")).isEmpty();
+        assertThat(participantService.findByTicket(event, "not a ticket")).isEmpty();
+
+        Participant dan = participant("Dan", 1, 10);
+        dan.setRanges(new ArrayList<>(List.of(TicketRange.of("987-050", "987-060"))));
+        assertThatThrownBy(() -> participantService.save(dan))
+                .isInstanceOf(TicketRangeConflictException.class)
+                .hasMessageContaining("Ann (987-001 – 987-100)");
+    }
+
+    @Test
     void aSecondRangeMayNotOverlapAnyoneElse() {
         participantService.save(participant("Ann", 1, 10));
         Participant bob = participantService.save(participant("Bob", 11, 20));

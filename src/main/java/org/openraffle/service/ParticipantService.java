@@ -46,9 +46,16 @@ public class ParticipantService {
         return participants.findByToken(token);
     }
 
+    /** The participant holding a drawn ticket, given as printed ("42", "987-042", "4563-100-300"). */
     @Transactional(readOnly = true)
-    public Optional<Participant> findByTicket(Event event, long ticket) {
-        return participants.findHolding(event, ticket).stream().findFirst();
+    public Optional<Participant> findByTicket(Event event, String printedTicket) {
+        return TicketRange.TicketNumber.parse(printedTicket)
+                .flatMap(t -> participants.findHolding(event, t.prefix(), t.sequence()).stream().findFirst());
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Participant> findByTicket(Event event, long plainTicket) {
+        return findByTicket(event, String.valueOf(plainTicket));
     }
 
     /**
@@ -88,7 +95,7 @@ public class ParticipantService {
         Set<Participant> conflicts = new LinkedHashSet<>();
         for (TicketRange range : ranges) {
             conflicts.addAll(participants.findOverlapping(
-                    participant.getEvent(), range.getStart(), range.getEnd(), participant.getId()));
+                    participant.getEvent(), range.getPrefix(), range.getStart(), range.getEnd(), participant.getId()));
         }
         if (!conflicts.isEmpty()) {
             throw new TicketRangeConflictException(List.copyOf(conflicts));
