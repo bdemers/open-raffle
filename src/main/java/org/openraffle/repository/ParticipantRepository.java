@@ -16,21 +16,28 @@ public interface ParticipantRepository extends JpaRepository<Participant, Long> 
 
     List<Participant> findAllByEvent(Event event);
 
-    /** The participant of the event holding the ticket in any of their ranges. */
+    /** The participant of the event holding the ticket (prefix + sequence) in any of their ranges. */
     @Query("""
             select distinct p from Participant p join p.ranges r
-            where p.event = :event and r.start <= :ticket and r.end >= :ticket
+            where p.event = :event and coalesce(r.prefix, '') = :prefix
+              and r.start <= :ticket and r.end >= :ticket
             """)
-    List<Participant> findHolding(@Param("event") Event event, @Param("ticket") long ticket);
+    List<Participant> findHolding(@Param("event") Event event,
+                                  @Param("prefix") String prefix,
+                                  @Param("ticket") long ticket);
 
-    /** Participants of the event (other than {@code excludeId}) with a range overlapping [start, end]. */
+    /**
+     * Participants of the event (other than {@code excludeId}) with a range of the same
+     * prefix overlapping [start, end].
+     */
     @Query("""
             select distinct p from Participant p join p.ranges r
-            where p.event = :event
+            where p.event = :event and coalesce(r.prefix, '') = :prefix
               and r.start <= :end and r.end >= :start
               and (:excludeId is null or p.id <> :excludeId)
             """)
     List<Participant> findOverlapping(@Param("event") Event event,
+                                      @Param("prefix") String prefix,
                                       @Param("start") long start,
                                       @Param("end") long end,
                                       @Param("excludeId") Long excludeId);

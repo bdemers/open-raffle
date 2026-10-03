@@ -7,12 +7,12 @@ import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 import org.junit.jupiter.api.Test;
 import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
+import org.openraffle.domain.TicketRange;
 import org.openraffle.ui.admin.DrawView;
 
 import java.util.List;
@@ -64,7 +64,11 @@ class DrawViewTest extends KaribuTest {
     }
 
     private void lookUp(int ticket) {
-        _setValue(_get(IntegerField.class, spec -> spec.withLabel("Drawn ticket #")), ticket);
+        lookUp(String.valueOf(ticket));
+    }
+
+    private void lookUp(String printed) {
+        _setValue(_get(TextField.class, spec -> spec.withLabel("Drawn ticket #")), printed);
         _click(_get(Button.class, spec -> spec.withText("Look up")));
     }
 
@@ -95,6 +99,29 @@ class DrawViewTest extends KaribuTest {
         assertThat(_get(com.vaadin.flow.component.html.Paragraph.class,
                 spec -> spec.withPredicate(p -> p.getText().startsWith("Holds tickets"))).getText())
                 .isEqualTo("Holds tickets 11 – 20, 40 – 45");
+    }
+
+    @Test
+    void prefixedTicketsAreLookedUpExactlyAsPrinted() {
+        openDraw();
+        Participant nigel = participant(fair, "Nigel", 900, 901);
+        nigel.setRanges(new java.util.ArrayList<>(List.of(TicketRange.of("987-001", "987-100"))));
+        participants.save(nigel);
+        navigate("events/" + fair.getId());
+        navigate("events/" + fair.getId() + "/draw");
+
+        lookUp("987-042");
+        assertThat(_get(H3.class).getText()).contains("Nigel");
+        assertThat(_get(com.vaadin.flow.component.html.Paragraph.class,
+                spec -> spec.withPredicate(p -> p.getText().startsWith("Holds tickets"))).getText())
+                .isEqualTo("Holds tickets 987-001 – 987-100");
+
+        lookUp("988-042");
+        assertThat(_get(Span.class, spec -> spec.withPredicate(s -> s.getText().startsWith("No participant"))).getText())
+                .isEqualTo("No participant holds ticket 988-042.");
+
+        lookUp("nope");
+        assertThat(_get(Span.class, spec -> spec.withPredicate(s -> s.getText().contains("not a ticket number")))).isNotNull();
     }
 
     @Test

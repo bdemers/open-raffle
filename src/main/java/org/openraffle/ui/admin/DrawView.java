@@ -18,7 +18,6 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -29,6 +28,7 @@ import jakarta.annotation.security.RolesAllowed;
 import org.openraffle.domain.Event;
 import org.openraffle.domain.Participant;
 import org.openraffle.domain.Prize;
+import org.openraffle.domain.TicketRange;
 import org.openraffle.security.SecurityConfig;
 import org.openraffle.service.EventService;
 import org.openraffle.service.ParticipantService;
@@ -52,7 +52,7 @@ public class DrawView extends VerticalLayout implements BeforeEnterObserver {
     private final PrizeService prizeService;
     private final EventService eventService;
     private final Div result = new Div();
-    private Integer lastTicket;
+    private String lastTicket;
     private Event event;
 
     public DrawView(ParticipantService participantService, PrizeService prizeService, EventService eventService) {
@@ -61,9 +61,11 @@ public class DrawView extends VerticalLayout implements BeforeEnterObserver {
         this.eventService = eventService;
         setMaxWidth("720px");
 
-        IntegerField ticket = new IntegerField("Drawn ticket #");
-        ticket.setMin(0);
+        TextField ticket = new TextField("Drawn ticket #");
+        ticket.setPlaceholder("42 or 987-042");
+        ticket.setHelperText("Exactly as printed, dashes included");
         ticket.setAutofocus(true);
+        ticket.setAutoselect(true);
         Button lookup = new Button("Look up", VaadinIcon.SEARCH.create(), e -> lookup(ticket.getValue()));
         lookup.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         lookup.addClickShortcut(Key.ENTER).listenOn(ticket);
@@ -79,14 +81,21 @@ public class DrawView extends VerticalLayout implements BeforeEnterObserver {
         EventScopedView.resolve(enter, eventService).ifPresent(e -> event = e);
     }
 
-    private void lookup(Integer ticketNumber) {
-        lastTicket = ticketNumber;
+    private void lookup(String printedTicket) {
+        lastTicket = printedTicket;
         result.removeAll();
-        if (ticketNumber == null) {
+        if (printedTicket == null || printedTicket.isBlank()) {
             return;
         }
-        participantService.findByTicket(event, ticketNumber).ifPresentOrElse(this::showWinner, () -> {
-            Span none = new Span("No participant holds ticket " + ticketNumber + ".");
+        String ticket = printedTicket.trim();
+        if (TicketRange.TicketNumber.parse(ticket).isEmpty()) {
+            Span bad = new Span("\"" + ticket + "\" is not a ticket number: use digits, optionally with a dashed prefix like 987-042.");
+            bad.addClassNames(LumoUtility.TextColor.ERROR);
+            result.add(bad);
+            return;
+        }
+        participantService.findByTicket(event, ticket).ifPresentOrElse(this::showWinner, () -> {
+            Span none = new Span("No participant holds ticket " + ticket + ".");
             none.addClassNames(LumoUtility.TextColor.ERROR);
             result.add(none);
         });
