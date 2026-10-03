@@ -8,6 +8,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.ListItem;
@@ -154,6 +155,8 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         rangeRows.setSpacing(false);
         Span rangesLabel = new Span("Tickets");
         rangesLabel.addClassNames(LumoUtility.FontSize.SMALL, LumoUtility.FontWeight.MEDIUM, LumoUtility.TextColor.SECONDARY);
+        Span rangesHint = new Span("Exactly as printed on the roll: digits, or a dashed prefix and digits, e.g. 1 – 100 or 987-001 – 987-100.");
+        rangesHint.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.TERTIARY);
         Button addRange = new Button("Add another range", VaadinIcon.PLUS.create(), e -> addRangeRow(rangeRows, null).focus());
         addRange.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
         if (participant.getRanges().isEmpty()) {
@@ -163,7 +166,9 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         }
 
         FormLayout form = new FormLayout(name, phone);
-        dialog.add(form, rangesLabel, rangeRows, addRange);
+        Div ticketsHeader = new Div(rangesLabel, rangesHint);
+        ticketsHeader.addClassNames(LumoUtility.Display.FLEX, LumoUtility.FlexDirection.COLUMN, LumoUtility.Margin.Top.SMALL);
+        dialog.add(form, ticketsHeader, rangeRows, addRange);
         dialog.setWidth("520px");
 
         Button save = new Button(isNew ? "Create & show QR" : "Save", e -> {
@@ -201,8 +206,9 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         TextField first = new TextField("First ticket #");
         TextField last = new TextField("Last ticket #");
         first.setPlaceholder("1 or 987-001");
-        first.setHelperText("Digits, or a dashed prefix and digits, exactly as printed on the roll");
         last.setPlaceholder("100 or 987-100");
+        first.setWidthFull();
+        last.setWidthFull();
         // The last ticket defaults to the first one; select it on focus so typing replaces it.
         last.setAutoselect(true);
         if (existing != null) {
@@ -223,8 +229,11 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
             }
         });
 
+        // Both fields share the width; the remove button lines up with the inputs.
         HorizontalLayout row = new HorizontalLayout(first, last);
+        row.setWidthFull();
         row.setAlignItems(Alignment.END);
+        row.setFlexGrow(1, first, last);
         Button remove = new Button(VaadinIcon.CLOSE_SMALL.create(), e -> {
             rows.remove(row);
             updateRemoveButtons(rows);

@@ -5,6 +5,13 @@ All notable changes to Open Raffle are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-10-02
+
+### Fixed
+- The ticket-range rows in the participant editor no longer stagger: the format hint is
+  shown once under "Tickets", the two fields share the row, and the remove button lines up
+  with the inputs.
+
 ## [1.1.0] - 2026-10-02
 
 ### Added
@@ -193,6 +200,7 @@ vulnerabilities (`snyk test` and `snyk code test` both report 0 issues).
   provides Postgres for local development.
 - **CI.** GitHub Actions runs the test suite on every push and pull request.
 
+[1.1.1]: https://github.com/dogeared/open-raffle/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/dogeared/open-raffle/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/dogeared/open-raffle/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/dogeared/open-raffle/compare/v0.4.0...v1.0.0
