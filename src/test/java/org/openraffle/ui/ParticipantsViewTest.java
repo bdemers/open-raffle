@@ -120,7 +120,8 @@ class ParticipantsViewTest extends KaribuTest {
         _click(_get(Button.class, spec -> spec.withText("Create & show QR")));
 
         assertThat(last.isInvalid()).isTrue();
-        assertThat(last.getErrorMessage()).contains("share the prefix");
+        assertThat(_get(com.vaadin.flow.component.html.Span.class,
+                spec -> spec.withPredicate(sp -> sp.getText().contains("share the prefix"))).isVisible()).isTrue();
         assertThat(participants.count()).isZero();
 
         _setValue(last, "987-100");

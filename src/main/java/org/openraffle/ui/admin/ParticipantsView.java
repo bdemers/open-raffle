@@ -229,11 +229,19 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
             }
         });
 
-        // Both fields share the width; the remove button lines up with the inputs.
-        HorizontalLayout row = new HorizontalLayout(first, last);
-        row.setWidthFull();
-        row.setAlignItems(Alignment.END);
-        row.setFlexGrow(1, first, last);
+        // Both fields share the width; the remove button lines up with the inputs. Errors go
+        // on a line under the row (field-level error text would make one field taller than
+        // the other and stagger the row).
+        HorizontalLayout fields = new HorizontalLayout(first, last);
+        fields.setWidthFull();
+        fields.setAlignItems(Alignment.END);
+        fields.setFlexGrow(1, first, last);
+        Span error = new Span();
+        error.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.ERROR);
+        error.setVisible(false);
+        VerticalLayout row = new VerticalLayout(fields, error);
+        row.setPadding(false);
+        row.setSpacing(false);
         Button remove = new Button(VaadinIcon.CLOSE_SMALL.create(), e -> {
             rows.remove(row);
             updateRemoveButtons(rows);
@@ -241,7 +249,7 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
         remove.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
         remove.setAriaLabel("Remove range");
         remove.setTooltipText("Remove range");
-        row.add(remove);
+        fields.add(remove);
         rows.add(row);
         updateRemoveButtons(rows);
         return first;
@@ -250,36 +258,47 @@ public class ParticipantsView extends VerticalLayout implements BeforeEnterObser
     /** The only remaining range cannot be removed. */
     private static void updateRemoveButtons(VerticalLayout rows) {
         long count = rows.getChildren().count();
-        rows.getChildren().forEach(row -> ((HorizontalLayout) row).getChildren()
+        rows.getChildren().forEach(row -> fieldsOf(row).getChildren()
                 .filter(Button.class::isInstance).map(Button.class::cast)
                 .forEach(b -> b.setEnabled(count > 1)));
+    }
+
+    private static HorizontalLayout fieldsOf(com.vaadin.flow.component.Component row) {
+        return (HorizontalLayout) ((VerticalLayout) row).getComponentAt(0);
+    }
+
+    private static Span errorOf(com.vaadin.flow.component.Component row) {
+        return (Span) ((VerticalLayout) row).getComponentAt(1);
     }
 
     /** The ranges typed into the rows, or null (with the offending fields marked) if a row is incomplete or invalid. */
     private static List<TicketRange> readRanges(VerticalLayout rows) {
         List<TicketRange> ranges = new ArrayList<>();
         boolean complete = true;
-        for (var child : rows.getChildren().toList()) {
-            HorizontalLayout row = (HorizontalLayout) child;
-            TextField first = (TextField) row.getComponentAt(0);
-            TextField last = (TextField) row.getComponentAt(1);
-            boolean rowOk = true;
-            for (TextField field : List.of(first, last)) {
-                boolean missing = field.getValue() == null || field.getValue().isBlank();
-                field.setInvalid(missing);
-                field.setErrorMessage(missing ? "Required" : null);
-                rowOk &= !missing;
-            }
-            if (rowOk) {
+        for (var row : rows.getChildren().toList()) {
+            HorizontalLayout fields = fieldsOf(row);
+            TextField first = (TextField) fields.getComponentAt(0);
+            TextField last = (TextField) fields.getComponentAt(1);
+            Span error = errorOf(row);
+            String problem = null;
+            boolean firstMissing = first.getValue() == null || first.getValue().isBlank();
+            boolean lastMissing = last.getValue() == null || last.getValue().isBlank();
+            first.setInvalid(firstMissing);
+            last.setInvalid(lastMissing);
+            if (firstMissing || lastMissing) {
+                problem = "Both the first and the last ticket are required";
+            } else {
                 try {
                     ranges.add(TicketRange.of(first.getValue(), last.getValue()));
                 } catch (IllegalArgumentException ex) {
+                    problem = ex.getMessage();
+                    first.setInvalid(true);
                     last.setInvalid(true);
-                    last.setErrorMessage(ex.getMessage());
-                    rowOk = false;
                 }
             }
-            complete &= rowOk;
+            error.setText(problem == null ? "" : problem);
+            error.setVisible(problem != null);
+            complete &= problem == null;
         }
         return complete ? ranges : null;
     }
